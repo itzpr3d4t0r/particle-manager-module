@@ -44,6 +44,8 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
             break;
     }
 
+    group->grav_x = (float)gx;
+    group->grav_y = (float)gy;
     group->n_size = n_particles;
     group->particles = PyMem_New(Particle, group->n_size);
     if (!group->particles)
@@ -51,8 +53,10 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
     for (Py_ssize_t k = 0; k < group->n_size; k++) {
         group->particles[k].x = (float)x;
         group->particles[k].y = (float)y;
-        group->particles[k].vx = rand_x ? (float)rand_real_between(vx_min, vx_max) : (float)vx_min;
-        group->particles[k].vy = rand_y ? (float)rand_real_between(vy_min, vy_max) : (float)vy_min;
+        group->particles[k].vx =
+            rand_x ? (float)rand_real_between(vx_min, vx_max) : (float)vx_min;
+        group->particles[k].vy =
+            rand_y ? (float)rand_real_between(vy_min, vy_max) : (float)vy_min;
         group->particles[k].img_ix = 0;
     }
 
@@ -139,12 +143,18 @@ pm_update(ParticleManager *self, PyObject *arg)
     if (!DoubleFromObj(arg, &dt))
         return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
 
-    float dtf = (float)dt;
+    const float dtf = (float)dt;
 
     for (Py_ssize_t j = 0; j < self->g_used; j++) {
         ParticleGroup *group = &self->groups[j];
-        for (Py_ssize_t i = 0; i < group->n_size; i++)
-            particle_move(&group->particles[i], dtf);
+        for (Py_ssize_t i = 0; i < group->n_size; i++) {
+            Particle *p = &group->particles[i];
+            particle_move(p, dtf);
+            if (group->grav_x)
+                p->x += group->grav_x * dtf;
+            if (group->grav_y)
+                p->y += group->grav_y * dtf;
+        }
     }
 
     Py_RETURN_NONE;

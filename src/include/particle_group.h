@@ -12,6 +12,8 @@ typedef struct {
     PyObject **images;
     Py_ssize_t n_images;
     int blend_flag;
+    float grav_x;
+    float grav_y;
 } ParticleGroup;
 
 void
