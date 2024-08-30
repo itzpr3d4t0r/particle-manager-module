@@ -51,8 +51,8 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
     for (Py_ssize_t k = 0; k < group->n_size; k++) {
         group->particles[k].x = (float)x;
         group->particles[k].y = (float)y;
-        group->particles[k].vx = (float)vx_min;
-        group->particles[k].vy = (float)vy_min;
+        group->particles[k].vx = rand_x ? (float)rand_real_between(vx_min, vx_max) : (float)vx_min;
+        group->particles[k].vy = rand_y ? (float)rand_real_between(vy_min, vy_max) : (float)vy_min;
         group->particles[k].img_ix = 0;
     }
 
@@ -232,6 +232,8 @@ PyInit_particle_manager(void)
     if (PyModule_AddIntConstant(module, "GROUP_RECT_AREA", GroupKind_RECT_AREA) ==
         -1)
         return NULL;
+
+    init_genrand(time(NULL));
 
     return module;
 }

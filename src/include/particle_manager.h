@@ -1,5 +1,6 @@
 #pragma once
 #include "particle_group.h"
+#include "MT19937.h"
 
 typedef struct {
     PyObject_HEAD ParticleGroup *groups;

@@ -407,7 +407,7 @@ TwoDoublesAndBoolFromTuple(PyObject *tup, double *a, double *b, int *c)
     if (!DoubleFromObj(PyTuple_GET_ITEM(tup, 0), a))
         return 0;
 
-    if (size == 2 && !DoubleFromObj(PyTuple_GET_ITEM(tup, 1), b))
+    if (size >= 2 && !DoubleFromObj(PyTuple_GET_ITEM(tup, 1), b))
         return 0;
 
     if (size == 3 && (*c = PyObject_IsTrue(PyTuple_GET_ITEM(tup, 2))) == -1) {

@@ -1,3 +1,5 @@
+from random import random
+
 from particle_manager import ParticleManager, GROUP_POINT
 from pygame import Surface
 import pygame
@@ -21,7 +23,7 @@ PM.add_group(
     (-1, 1, True),  # y velocity info
 )
 
-particles = [PyParticle((500, 500), (0.1, 0.1)) for _ in range(10000)]
+particles = [PyParticle((500, 500), (random() * 2 - 1, random() * 2 - 1)) for _ in range(10000)]
 
 screen = pygame.display.set_mode((1000, 1000))
 
@@ -44,8 +46,8 @@ while True:
             p.update(dt)
         screen.fblits([(p.images[p.img_ix], (p.x, p.y)) for p in particles])
 
-    screen.blit(font.render(f"fps: {int(clock.get_fps())}", True, "white"))
-    screen.blit(font.render(f"particles: {PM.num_particles}", True, "white"), (0, 30))
+    screen.blit(font.render(f"fps: {int(clock.get_fps())}", True, "red"))
+    screen.blit(font.render(f"particles: {PM.num_particles}", True, "red"), (0, 30))
 
     pygame.display.flip()
 
