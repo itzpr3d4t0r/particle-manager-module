@@ -15,7 +15,6 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 
     if (!IntFromObj(args[0], &n_particles) || n_particles <= 0)
         return IRAISE(PyExc_TypeError, "Invalid number of particles");
-    group->n_size = n_particles;
 
     if (!TwoDoublesFromObj(args[1], &x, &y))
         return IRAISE(PyExc_TypeError, "Invalid type for paramenter: pos");
@@ -31,12 +30,10 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
             if (!DoubleFromObj(args[6], &gx))
                 return IRAISE(PyExc_TypeError, "Invalid gravity_x");
         case 3:
-            if (!TwoDoublesAndBoolFromTuple(args[5], &vy_min, &vy_max,
-                                            &rand_y))
+            if (!TwoDoublesAndBoolFromTuple(args[5], &vy_min, &vy_max, &rand_y))
                 return IRAISE(PyExc_TypeError, "Invalid vy");
         case 2:
-            if (!TwoDoublesAndBoolFromTuple(args[4], &vx_min, &vx_max,
-                                            &rand_x))
+            if (!TwoDoublesAndBoolFromTuple(args[4], &vx_min, &vx_max, &rand_x))
                 return IRAISE(PyExc_TypeError, "Invalid vx");
         case 1:
             if (!DoubleFromObj(args[3], &radius))
@@ -47,6 +44,7 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
             break;
     }
 
+    group->n_size = n_particles;
     group->particles = PyMem_New(Particle, group->n_size);
     if (!group->particles)
         return IRAISE(PyExc_MemoryError, "Memory Error");
@@ -75,8 +73,7 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 }
 
 static int
-_pm_internal_add_group(ParticleGroup *group, PyObject *const *args,
-                       Py_ssize_t nargs)
+_pm_internal_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
     int kind;
     if (!IntFromObj(args[0], &kind)) {
@@ -122,8 +119,7 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 
     if (self->g_used + 1 > self->g_alloc) {
         self->g_alloc *= 2;
-        self->groups =
-            PyMem_Resize(self->groups, ParticleGroup, self->g_alloc);
+        self->groups = PyMem_Resize(self->groups, ParticleGroup, self->g_alloc);
         if (!self->groups)
             return PyErr_NoMemory();
     }
@@ -141,8 +137,7 @@ pm_update(ParticleManager *self, PyObject *arg)
 {
     double dt;
     if (!DoubleFromObj(arg, &dt))
-        return RAISE(PyExc_TypeError,
-                     "Invalid dt parameter, must be nmumeric");
+        return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
 
     float dtf = (float)dt;
 
@@ -198,8 +193,7 @@ static PyGetSetDef PM_attributes[] = {
     {NULL, 0, NULL, NULL, NULL}};
 
 static PyTypeObject ParticleManagerType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name =
-        "particle_manager.ParticleManager",
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "particle_manager.ParticleManager",
     .tp_doc = "Particle Manager",
     .tp_basicsize = sizeof(ParticleManager),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -230,14 +224,13 @@ PyInit_particle_manager(void)
         return NULL;
 
     Py_INCREF(&ParticleManagerType);
-    PyModule_AddObject(module, "ParticleManager",
-                       (PyObject *)&ParticleManagerType);
+    PyModule_AddObject(module, "ParticleManager", (PyObject *)&ParticleManagerType);
 
     if (PyModule_AddIntConstant(module, "GROUP_POINT", GroupKind_POINT) == -1)
         return NULL;
 
-    if (PyModule_AddIntConstant(module, "GROUP_RECT_AREA",
-                                GroupKind_RECT_AREA) == -1)
+    if (PyModule_AddIntConstant(module, "GROUP_RECT_AREA", GroupKind_RECT_AREA) ==
+        -1)
         return NULL;
 
     return module;

@@ -168,8 +168,7 @@ TwoDoublesFromObj(PyObject *obj, double *val1, double *val2)
         length = PySequence_Fast_GET_SIZE(obj);
         PyObject **f_arr = PySequence_Fast_ITEMS(obj);
         if (length == 2) {
-            if (!DoubleFromObj(f_arr[0], val1) ||
-                !DoubleFromObj(f_arr[1], val2)) {
+            if (!DoubleFromObj(f_arr[0], val1) || !DoubleFromObj(f_arr[1], val2)) {
                 return 0;
             }
         }
@@ -229,8 +228,8 @@ TwoDoublesFromTuple(PyObject *obj, double *val1, double *val2)
 }
 
 static FORCEINLINE int
-TwoDoublesFromFastcallArgs(PyObject *const *args, Py_ssize_t nargs,
-                           double *val1, double *val2)
+TwoDoublesFromFastcallArgs(PyObject *const *args, Py_ssize_t nargs, double *val1,
+                           double *val2)
 {
     if (nargs == 1 && TwoDoublesFromObj(args[0], val1, val2)) {
         return 1;

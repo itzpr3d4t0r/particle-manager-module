@@ -12,8 +12,7 @@ pm_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     ParticleManager *self = (ParticleManager *)type->tp_alloc(type, 0);
     if (self) {
-        self->groups =
-            (ParticleGroup *)PyMem_Calloc(10, sizeof(ParticleGroup));
+        self->groups = (ParticleGroup *)PyMem_Calloc(10, sizeof(ParticleGroup));
         if (!self->groups) {
             Py_DECREF(self);
             return PyErr_NoMemory();
@@ -33,14 +32,12 @@ pm_init(ParticleManager *self, PyObject *args, PyObject *kwds)
         return -1;
 
     if (alloc_request < self->g_alloc) {
-        PyErr_SetString(PyExc_ValueError,
-                        "Cannot allocate less than 10 groups");
+        PyErr_SetString(PyExc_ValueError, "Cannot allocate less than 10 groups");
         return -1;
     }
 
     if (alloc_request > self->g_alloc) {
-        self->groups =
-            PyMem_Resize(self->groups, ParticleGroup, alloc_request);
+        self->groups = PyMem_Resize(self->groups, ParticleGroup, alloc_request);
         if (!self->groups) {
             PyErr_NoMemory();
             return -1;
