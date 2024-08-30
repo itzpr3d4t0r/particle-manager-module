@@ -1,4 +1,5 @@
 #include "include/particle_manager.h"
+#include <math.h>
 
 /* =======================| INTERNAL FUNCTIONALITY |======================= */
 
@@ -6,17 +7,17 @@ static int
 _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
     int n_particles;
-    double x, y;
-    double radius = 0;
-    double vx_min = 0, vx_max = 0, vy_min = 0, vy_max = 0;
+    float x, y;
+    float radius = 0;
+    float vx_min = 0, vx_max = 0;
+    float vy_min = 0, vy_max = 0;
+    float gx = 0, gy = 0;
     int rand_x = 0, rand_y = 0;
-
-    double gx = 0, gy = 0;
 
     if (!IntFromObj(args[0], &n_particles) || n_particles <= 0)
         return IRAISE(PyExc_TypeError, "Invalid number of particles");
 
-    if (!TwoDoublesFromObj(args[1], &x, &y))
+    if (!TwoFloatsFromObj(args[1], &x, &y))
         return IRAISE(PyExc_TypeError, "Invalid type for paramenter: pos");
 
     if (!PyList_Check(args[2]))
@@ -24,19 +25,19 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 
     switch (nargs - 3) {
         case 5:
-            if (!DoubleFromObj(args[7], &gy))
+            if (!FloatFromObj(args[7], &gy))
                 return IRAISE(PyExc_TypeError, "Invalid gravity_y");
         case 4:
-            if (!DoubleFromObj(args[6], &gx))
+            if (!FloatFromObj(args[6], &gx))
                 return IRAISE(PyExc_TypeError, "Invalid gravity_x");
         case 3:
-            if (!TwoDoublesAndBoolFromTuple(args[5], &vy_min, &vy_max, &rand_y))
+            if (!TwoFloatsAndBoolFromTuple(args[5], &vy_min, &vy_max, &rand_y))
                 return IRAISE(PyExc_TypeError, "Invalid vy");
         case 2:
-            if (!TwoDoublesAndBoolFromTuple(args[4], &vx_min, &vx_max, &rand_x))
+            if (!TwoFloatsAndBoolFromTuple(args[4], &vx_min, &vx_max, &rand_x))
                 return IRAISE(PyExc_TypeError, "Invalid vx");
         case 1:
-            if (!DoubleFromObj(args[3], &radius))
+            if (!FloatFromObj(args[3], &radius))
                 return IRAISE(PyExc_TypeError,
                               "Invalid type for paramenter: radius");
             if (radius < 0)
@@ -44,19 +45,26 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
             break;
     }
 
-    group->grav_x = (float)gx;
-    group->grav_y = (float)gy;
+    group->grav_x = gx;
+    group->grav_y = gy;
     group->n_size = n_particles;
     group->particles = PyMem_New(Particle, group->n_size);
     if (!group->particles)
         return IRAISE(PyExc_MemoryError, "Memory Error");
+
     for (Py_ssize_t k = 0; k < group->n_size; k++) {
-        group->particles[k].x = (float)x;
-        group->particles[k].y = (float)y;
-        group->particles[k].vx =
-            rand_x ? (float)rand_real_between(vx_min, vx_max) : (float)vx_min;
-        group->particles[k].vy =
-            rand_y ? (float)rand_real_between(vy_min, vy_max) : (float)vy_min;
+        if (radius) {
+            const float a = random() * M_PI2;
+            const float r = random() * radius;
+            group->particles[k].x = x + cosf(a) * r;
+            group->particles[k].y = y + sinf(a) * r;
+        }
+        else {
+            group->particles[k].x = x;
+            group->particles[k].y = y;
+        }
+        group->particles[k].vx = rand_x ? rand_between(vx_min, vx_max) : vx_min;
+        group->particles[k].vy = rand_y ? rand_between(vy_min, vy_max) : vy_min;
         group->particles[k].img_ix = 0;
     }
 
@@ -139,21 +147,19 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 static PyObject *
 pm_update(ParticleManager *self, PyObject *arg)
 {
-    double dt;
-    if (!DoubleFromObj(arg, &dt))
+    float dt;
+    if (!FloatFromObj(arg, &dt))
         return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
-
-    const float dtf = (float)dt;
 
     for (Py_ssize_t j = 0; j < self->g_used; j++) {
         ParticleGroup *group = &self->groups[j];
         for (Py_ssize_t i = 0; i < group->n_size; i++) {
             Particle *p = &group->particles[i];
-            particle_move(p, dtf);
+            particle_move(p, dt);
             if (group->grav_x)
-                p->x += group->grav_x * dtf;
+                p->x += group->grav_x * dt;
             if (group->grav_y)
-                p->y += group->grav_y * dtf;
+                p->y += group->grav_y * dt;
         }
     }
 

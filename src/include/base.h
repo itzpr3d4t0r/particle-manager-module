@@ -505,16 +505,16 @@ TupleToIntPair(PyObject *obj, int *val1, int *val2)
 }
 
 static FORCEINLINE int
-TwoDoublesAndBoolFromTuple(PyObject *tup, double *a, double *b, int *c)
+TwoFloatsAndBoolFromTuple(PyObject *tup, float *a, float *b, int *c)
 {
     Py_ssize_t size;
     if (!PyTuple_Check(tup) || (size = PyTuple_GET_SIZE(tup)) < 1)
         return 0;
 
-    if (!DoubleFromObj(PyTuple_GET_ITEM(tup, 0), a))
+    if (!FloatFromObj(PyTuple_GET_ITEM(tup, 0), a))
         return 0;
 
-    if (size >= 2 && !DoubleFromObj(PyTuple_GET_ITEM(tup, 1), b))
+    if (size >= 2 && !FloatFromObj(PyTuple_GET_ITEM(tup, 1), b))
         return 0;
 
     if (size == 3 && (*c = PyObject_IsTrue(PyTuple_GET_ITEM(tup, 2))) == -1) {
