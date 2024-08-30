@@ -27,14 +27,13 @@ uint32_t
 genrand_int32(void)
 {
     uint32_t y;
-    static uint32_t mag01[2] = {0x0U, MATRIX_A};
 
     if (mti >= N) {  // Generate N words at one time
+        static const uint32_t mag01[2] = {0x0U, MATRIX_A};
         int kk;
 
-        if (mti == N + 1)  // If init_genrand() has not been called, a default
-                                  // initial seed is used
-            init_genrand(5489U);  // Default seed
+        if (mti == N + 1)
+            init_genrand(5489U);
 
         for (kk = 0; kk < N - M; kk++) {
             y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
