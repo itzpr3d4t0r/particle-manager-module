@@ -1,22 +1,11 @@
 #include "include/particle_manager.h"
 
 /* =======================| INTERNAL FUNCTIONALITY |======================= */
-static int
-_pm_resize_groups(ParticleManager *self)
-{
-    Py_ssize_t new_size = (Py_ssize_t)(self->g_alloc * 1.5);
-    self->groups = PyMem_Resize(self->groups, ParticleGroup, new_size);
-    if (!self->groups)
-        return 0;
-
-    self->g_alloc = new_size;
-    return 1;
-}
 
 static int
-_pm_g_add_point(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
+_pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
-    int number;
+    int n_particles;
     double x, y;
     double radius = 0;
     double vx_min = 0, vx_max = 0, vy_min = 0, vy_max = 0;
@@ -24,22 +13,15 @@ _pm_g_add_point(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 
     double gx = 0, gy = 0;
 
-    ParticleGroup *group = &self->groups[self->g_used];
-
-    if (!IntFromObj(args[0], &number) || number <= 0)
+    if (!IntFromObj(args[0], &n_particles) || n_particles <= 0)
         return IRAISE(PyExc_TypeError, "Invalid number of particles");
+    group->n_size = n_particles;
 
     if (!TwoDoublesFromObj(args[1], &x, &y))
         return IRAISE(PyExc_TypeError, "Invalid type for paramenter: pos");
 
     if (!PyList_Check(args[2]))
         return IRAISE(PyExc_TypeError, "images must be a list");
-
-    PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
-    Py_ssize_t list_len = PyList_GET_SIZE(args[2]);
-
-    if (list_len < 1)
-        return IRAISE(PyExc_TypeError, "Images list can't be empty");
 
     switch (nargs - 3) {
         case 5:
@@ -65,13 +47,35 @@ _pm_g_add_point(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
             break;
     }
 
-    return initialize_group_from_PointMode(
-        group, number, x, y, radius, vx_min, vx_max, vy_min, vx_max, gx, gy,
-        rand_x, rand_y, list_items, list_len);
+    group->particles = PyMem_New(Particle, group->n_size);
+    if (!group->particles)
+        return IRAISE(PyExc_MemoryError, "Memory Error");
+    for (Py_ssize_t k = 0; k < group->n_size; k++) {
+        group->particles[k].x = (float)x;
+        group->particles[k].y = (float)y;
+        group->particles[k].vx = (float)vx_min;
+        group->particles[k].vy = (float)vy_min;
+        group->particles[k].img_ix = 0;
+    }
+
+    PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
+    group->n_images = PyList_GET_SIZE(args[2]);
+    if (group->n_images < 1)
+        return IRAISE(PyExc_TypeError, "Images list can't be empty");
+    group->images = PyMem_New(PyObject *, group->n_images);
+    if (!group->images)
+        return IRAISE(PyExc_MemoryError, "Memory Error");
+
+    for (Py_ssize_t k = 0; k < group->n_images; k++) {
+        Py_INCREF(list_items[k]);
+        group->images[k] = list_items[k];
+    }
+
+    return 1;
 }
 
 static int
-_pm_internal_add_group(ParticleManager *self, PyObject *const *args,
+_pm_internal_add_group(ParticleGroup *group, PyObject *const *args,
                        Py_ssize_t nargs)
 {
     int kind;
@@ -79,16 +83,17 @@ _pm_internal_add_group(ParticleManager *self, PyObject *const *args,
         PyErr_SetString(PyExc_TypeError, "Invalid spawn_type type");
         return 0;
     }
+    nargs--;
 
     switch (kind) {
         case GroupKind_POINT:
-            if (nargs - 1 < 3 || nargs - 1 > 8) {
+            if (nargs < 3 || nargs > 8) {
                 PyErr_SetString(PyExc_TypeError,
                                 "GROUP_POINT spawn_type requires between 3 "
                                 "and 8 arguments.");
                 return 0;
             }
-            return _pm_g_add_point(self, args + 1, nargs - 1);
+            return _pm_g_add_point(group, args + 1, nargs);
         default:
             PyErr_SetString(PyExc_NotImplementedError,
                             "The supplied spawn_type doesn't exist.");
@@ -115,15 +120,18 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
         return NULL;
     }
 
-    if (self->g_used + 1 > self->g_alloc)
-        if (!_pm_resize_groups(self)) {
+    if (self->g_used + 1 > self->g_alloc) {
+        self->g_alloc *= 2;
+        self->groups =
+            PyMem_Resize(self->groups, ParticleGroup, self->g_alloc);
+        if (!self->groups)
             return PyErr_NoMemory();
-        }
+    }
 
-    if (!_pm_internal_add_group(self, args, nargs))
+    ParticleGroup *group = &self->groups[self->g_used++];
+
+    if (!_pm_internal_add_group(group, args, nargs))
         return NULL;
-
-    self->g_used += 1;
 
     Py_RETURN_NONE;
 }

@@ -45,7 +45,7 @@ while True:
         screen.fblits([(p.images[p.img_ix], (p.x, p.y)) for p in particles])
 
     screen.blit(font.render(f"fps: {int(clock.get_fps())}", True, "white"))
-    screen.blit(font.render(f"fps: {PM.num_particles}", True, "white"), (0, 30))
+    screen.blit(font.render(f"particles: {PM.num_particles}", True, "white"), (0, 30))
 
     pygame.display.flip()
 
