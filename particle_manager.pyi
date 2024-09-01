@@ -10,27 +10,12 @@ This flag makes ParticleManager.add_group() expect the following args (ordered a
 number,
 pos,
 images,
-radius = 0,
 vx=(min=0, max=0, randomize_x=False),
 vy=(min=0, max=0, randomize_y=False),
-gravity_x=0,
-gravity_y=0
+gravity=(x, y)
 
 """
-GROUP_POINT: int = 0
-
-"""
-This flag makes ParticleManager.add_group() expect the following args (ordered and positional):
-
-number,
-rect_area,
-vx=(min=0, max=0, randomize_x=False),
-vy=(min=0, max=0, randomize_y=False),
-gravity_x=0,
-gravity_y=0
-
-"""
-GROUP_RECT_AREA: int = 1
+SPAWN_POINT: int = 0
 
 class ParticleManager:
     num_particles: int

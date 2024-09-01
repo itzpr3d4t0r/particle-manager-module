@@ -6,13 +6,13 @@
 static int
 _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
-    int n_particles;
     float x, y;
-    float radius = 0;
     float vx_min = 0, vx_max = 0;
     float vy_min = 0, vy_max = 0;
     float gx = 0, gy = 0;
     int rand_x = 0, rand_y = 0;
+    int n_particles;
+    Py_ssize_t imgs_list_size;
 
     if (!IntFromObj(args[0], &n_particles) || n_particles <= 0)
         return IRAISE(PyExc_TypeError, "Invalid number of particles");
@@ -20,62 +20,51 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
     if (!TwoFloatsFromObj(args[1], &x, &y))
         return IRAISE(PyExc_TypeError, "Invalid type for paramenter: pos");
 
-    if (!PyList_Check(args[2]))
-        return IRAISE(PyExc_TypeError, "images must be a list");
+    if (!PyList_Check(args[2]) || (imgs_list_size = PyList_GET_SIZE(args[2])) == 0)
+        return IRAISE(PyExc_TypeError, "Invalid images list");
 
-    switch (nargs - 3) {
-        case 5:
-            if (!FloatFromObj(args[7], &gy))
-                return IRAISE(PyExc_TypeError, "Invalid gravity_y");
-        case 4:
-            if (!FloatFromObj(args[6], &gx))
-                return IRAISE(PyExc_TypeError, "Invalid gravity_x");
-        case 3:
-            if (!TwoFloatsAndBoolFromTuple(args[5], &vy_min, &vy_max, &rand_y))
-                return IRAISE(PyExc_TypeError, "Invalid vy");
-        case 2:
-            if (!TwoFloatsAndBoolFromTuple(args[4], &vx_min, &vx_max, &rand_x))
-                return IRAISE(PyExc_TypeError, "Invalid vx");
-        case 1:
-            if (!FloatFromObj(args[3], &radius))
+    switch (nargs) {
+        case 6:
+            if (!TwoFloatsFromObj(args[5], &gx, &gy))
                 return IRAISE(PyExc_TypeError,
-                              "Invalid type for paramenter: radius");
-            if (radius < 0)
-                return IRAISE(PyExc_ValueError, "radius can't be negative");
+                              "Invalid gravity. Must be a tuple of 2 floats");
+        case 5:
+            if (!TwoFloatsAndBoolFromTuple(args[4], &vy_min, &vy_max, &rand_y))
+                return IRAISE(
+                    PyExc_TypeError,
+                    "Invalid vy settings, must be a tuple of 2 floats and a bool");
+        case 4:
+            if (!TwoFloatsAndBoolFromTuple(args[3], &vx_min, &vx_max, &rand_x))
+                return IRAISE(
+                    PyExc_TypeError,
+                    "Invalid vx settings, must be a tuple of 2 floats and a bool");
             break;
     }
 
+    group->blend_flag = 0;
     group->grav_x = gx;
     group->grav_y = gy;
-    group->n_size = n_particles;
-    group->particles = PyMem_New(Particle, group->n_size);
-    if (!group->particles)
-        return IRAISE(PyExc_MemoryError, "Memory Error");
+    group->n_images = imgs_list_size;
+    group->n_particles = n_particles;
 
-    for (Py_ssize_t k = 0; k < group->n_size; k++) {
-        if (radius) {
-            const float a = random() * M_PI2;
-            const float r = random() * radius;
-            group->particles[k].x = x + cosf(a) * r;
-            group->particles[k].y = y + sinf(a) * r;
-        }
-        else {
-            group->particles[k].x = x;
-            group->particles[k].y = y;
-        }
-        group->particles[k].vx = rand_x ? rand_between(vx_min, vx_max) : vx_min;
-        group->particles[k].vy = rand_y ? rand_between(vy_min, vy_max) : vy_min;
-        group->particles[k].img_ix = 0;
+    if (!(group->particles = PyMem_New(Particle, n_particles)))
+        return IRAISE(PyExc_MemoryError, "Could not allocate memory for particles");
+
+    Particle *const particles = group->particles;
+
+    for (Py_ssize_t k = 0; k < group->n_particles; k++) {
+        Particle *const p = &particles[k];
+        p->x = x;
+        p->y = y;
+        p->vx = rand_x ? rand_between(vx_min, vx_max) : vx_min;
+        p->vy = rand_y ? rand_between(vy_min, vy_max) : vy_min;
+        p->energy = group->n_images - 1;
     }
 
-    PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
-    group->n_images = PyList_GET_SIZE(args[2]);
-    if (group->n_images < 1)
-        return IRAISE(PyExc_TypeError, "Images list can't be empty");
-    group->images = PyMem_New(PyObject *, group->n_images);
-    if (!group->images)
-        return IRAISE(PyExc_MemoryError, "Memory Error");
+    if (!(group->images = PyMem_New(PyObject *, group->n_images)))
+        return IRAISE(PyExc_MemoryError, "Could not allocate memory for images");
 
+    PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
     for (Py_ssize_t k = 0; k < group->n_images; k++) {
         Py_INCREF(list_items[k]);
         group->images[k] = list_items[k];
@@ -85,7 +74,7 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 }
 
 static int
-_pm_internal_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
+_pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
     int kind;
     if (!IntFromObj(args[0], &kind)) {
@@ -95,11 +84,11 @@ _pm_internal_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t n
     nargs--;
 
     switch (kind) {
-        case GroupKind_POINT:
-            if (nargs < 3 || nargs > 8) {
+        case SPAWN_POINT:
+            if (nargs < 3 || nargs > 6) {
                 PyErr_SetString(PyExc_TypeError,
-                                "GROUP_POINT spawn_type requires between 3 "
-                                "and 8 arguments.");
+                                "SPAWN_POINT spawn_type requires between 3 "
+                                "and 6 arguments.");
                 return 0;
             }
             return _pm_g_add_point(group, args + 1, nargs);
@@ -138,7 +127,7 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 
     ParticleGroup *group = &self->groups[self->g_used++];
 
-    if (!_pm_internal_add_group(group, args, nargs))
+    if (!_pm_add_group(group, args, nargs))
         return NULL;
 
     Py_RETURN_NONE;
@@ -153,13 +142,14 @@ pm_update(ParticleManager *self, PyObject *arg)
 
     for (Py_ssize_t j = 0; j < self->g_used; j++) {
         ParticleGroup *group = &self->groups[j];
-        for (Py_ssize_t i = 0; i < group->n_size; i++) {
+        for (Py_ssize_t i = 0; i < group->n_particles; i++) {
             Particle *p = &group->particles[i];
             particle_move(p, dt);
             if (group->grav_x)
                 p->x += group->grav_x * dt;
             if (group->grav_y)
                 p->y += group->grav_y * dt;
+            p->energy = MAX(0.0f, p->energy - dt);
         }
     }
 
@@ -172,7 +162,7 @@ pm_get_num_particles(ParticleManager *self, void *closure)
     Py_ssize_t n = 0;
 
     for (Py_ssize_t i = 0; i < self->g_used; i++)
-        n += self->groups[i].n_size;
+        n += self->groups[i].n_particles;
 
     return PyLong_FromSsize_t(n);
 }
@@ -242,11 +232,7 @@ PyInit_particle_manager(void)
     Py_INCREF(&ParticleManagerType);
     PyModule_AddObject(module, "ParticleManager", (PyObject *)&ParticleManagerType);
 
-    if (PyModule_AddIntConstant(module, "GROUP_POINT", GroupKind_POINT) == -1)
-        return NULL;
-
-    if (PyModule_AddIntConstant(module, "GROUP_RECT_AREA", GroupKind_RECT_AREA) ==
-        -1)
+    if (PyModule_AddIntConstant(module, "SPAWN_POINT", SPAWN_POINT) == -1)
         return NULL;
 
     init_genrand(time(NULL));

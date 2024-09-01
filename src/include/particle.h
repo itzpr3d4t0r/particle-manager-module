@@ -6,7 +6,7 @@ typedef struct {
     float y;
     float vx;
     float vy;
-    float img_ix;
+    float energy;
 } Particle;
 
 static void FORCEINLINE

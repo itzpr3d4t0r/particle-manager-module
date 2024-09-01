@@ -8,6 +8,13 @@ typedef struct {
     Py_ssize_t g_used;  /* number of currently used groups */
 } ParticleManager;
 
+enum {
+    SPAWN_POINT,
+    SPAWN_RADIUS,
+    SPAWN_RECT,
+    SPAWN_LINE,
+};
+
 static PyObject *
 pm_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
