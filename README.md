@@ -9,5 +9,5 @@ Once you navigate to the project's directory you can:
 2. Install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/) or [Visual Studio Build Tools 2017](https://aka.ms/vs/15/release/vs_buildtools.exe) and make sure you mark `MSVC v140 - VS 2015 C++ build tools (v14.00)` with the installation
 3. Run `python -m pip install setuptools -U` (If on 3.12 or greater be sure to have the `wheel` package installed)
 4. Install the latest version of [git](https://gitforwindows.org/)
-5. Run `git clone https://github.com/pygame-community/pygame_geometry.git`
+5. Run `git clone https://github.com/itzpr3d4t0r/particle-manager-module.git`
 6. Run `py -m pip install .`
