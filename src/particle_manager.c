@@ -101,6 +101,22 @@ _pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
     return 1;
 }
 
+static int
+_pm_remove_group(ParticleManager *self, Py_ssize_t index)
+{
+    if (index < 0 || index >= self->g_used)
+        return 0;
+
+    ParticleGroup *group = &self->groups[index];
+    dealloc_group(group);
+
+    for (Py_ssize_t i = index; i < self->g_used - 1; i++)
+        self->groups[i] = self->groups[i + 1];
+
+    self->g_used--;
+    return 1;
+}
+
 /* ======================================================================== */
 
 static PyObject *
@@ -129,6 +145,24 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 
     if (!_pm_add_group(group, args, nargs))
         return NULL;
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+pm_remove_group(ParticleManager *self, PyObject *arg)
+{
+    Py_ssize_t index;
+    if (!IntFromObj(arg, &index))
+        return RAISE(PyExc_TypeError, "Invalid index parameter, must be numeric");
+
+    if (!_pm_remove_group(self, index)) {
+        PyErr_Format(
+            PyExc_IndexError,
+            "Invalid index. Expected an index between 0 and %zd but got: %zd", index,
+            self->g_used - 1);
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
@@ -191,6 +225,7 @@ pm_get_groups(ParticleManager *self, void *closure)
 static PyMethodDef PM_methods[] = {
     {"update", (PyCFunction)pm_update, METH_O, NULL},
     {"add_group", (PyCFunction)pm_add_group, METH_FASTCALL, NULL},
+    {"remove_group", (PyCFunction)pm_remove_group, METH_O, NULL},
     {NULL, NULL, 0, NULL}};
 
 static PyGetSetDef PM_attributes[] = {
