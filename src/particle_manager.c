@@ -41,7 +41,6 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
             break;
     }
 
-    group->blend_flag = 0;
     group->grav_x = gx;
     group->grav_y = gy;
     group->n_images = imgs_list_size;
@@ -76,12 +75,20 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 static int
 _pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
+    int blend_flag = 0;
+    if (!IntFromObj(args[0], &blend_flag)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid blend_flag type");
+        return 0;
+    }
+    group->blend_flag = blend_flag;
+
     int kind;
-    if (!IntFromObj(args[0], &kind)) {
+    if (!IntFromObj(args[1], &kind)) {
         PyErr_SetString(PyExc_TypeError, "Invalid spawn_type type");
         return 0;
     }
-    nargs--;
+
+    nargs -= 2;
 
     switch (kind) {
         case SPAWN_POINT:
@@ -91,7 +98,7 @@ _pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
                                 "and 6 arguments.");
                 return 0;
             }
-            return _pm_g_add_point(group, args + 1, nargs);
+            return _pm_g_add_point(group, args + 2, nargs);
         default:
             PyErr_SetString(PyExc_NotImplementedError,
                             "The supplied spawn_type doesn't exist.");
@@ -139,7 +146,7 @@ pm_str(ParticleManager *self)
 static PyObject *
 pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    if (nargs <= 1) {
+    if (nargs <= 2) {
         PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
         return NULL;
     }
@@ -151,10 +158,12 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
             return PyErr_NoMemory();
     }
 
-    ParticleGroup *group = &self->groups[self->g_used++];
+    ParticleGroup *group = &self->groups[self->g_used];
 
     if (!_pm_add_group(group, args, nargs))
         return NULL;
+
+    self->g_used++;
 
     Py_RETURN_NONE;
 }
