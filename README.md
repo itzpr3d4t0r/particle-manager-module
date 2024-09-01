@@ -2,12 +2,12 @@
 This Cpython module aims to deliver a fast particle manager by avoiding having to deal with individual particles in python.
 
 # Installation
-You can either run this command once you navigate in the project's directory:
+Once you navigate to the project's directory you can:
 
-`py -m pip install .`
-
-or run the `setup.py` module directly with the following extra args:
-
-`build_ext --inplace`
-
-This will create a `build` directory and a .pyd file packaging the library.
+### Windows 10 / Windows 11
+1. Install Python 3.8+
+2. Install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/) or [Visual Studio Build Tools 2017](https://aka.ms/vs/15/release/vs_buildtools.exe) and make sure you mark `MSVC v140 - VS 2015 C++ build tools (v14.00)` with the installation
+3. Run `python -m pip install setuptools -U` (If on 3.12 or greater be sure to have the `wheel` package installed)
+4. Install the latest version of [git](https://gitforwindows.org/)
+5. Run `git clone https://github.com/pygame-community/pygame_geometry.git`
+6. Run `py -m pip install .`
