@@ -102,7 +102,7 @@ _pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 }
 
 static int
-_pm_remove_group(ParticleManager *self, Py_ssize_t index)
+_pm_remove_group(ParticleManager *self, int index)
 {
     if (index < 0 || index >= self->g_used)
         return 0;
@@ -110,7 +110,7 @@ _pm_remove_group(ParticleManager *self, Py_ssize_t index)
     ParticleGroup *group = &self->groups[index];
     dealloc_group(group);
 
-    for (Py_ssize_t i = index; i < self->g_used - 1; i++)
+    for (int i = index; i < self->g_used - 1; i++)
         self->groups[i] = self->groups[i + 1];
 
     self->g_used--;
@@ -122,8 +122,18 @@ _pm_remove_group(ParticleManager *self, Py_ssize_t index)
 static PyObject *
 pm_str(ParticleManager *self)
 {
-    return PyUnicode_FromFormat("ParticleManager(occupied groups: %d/%d)",
-                                self->g_used, self->g_alloc);
+    PyObject *groups_list = get_group_str_list(self->groups, self->g_used);
+    if (!groups_list)
+        return NULL;
+
+    PyObject *str = PyUnicode_FromFormat(
+        "ParticleManager(%d,\n"
+        "%R\n)",
+        self->g_used, groups_list);
+
+    Py_DECREF(groups_list);
+
+    return str;
 }
 
 static PyObject *
@@ -152,15 +162,15 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 static PyObject *
 pm_remove_group(ParticleManager *self, PyObject *arg)
 {
-    Py_ssize_t index;
+    int index;
     if (!IntFromObj(arg, &index))
         return RAISE(PyExc_TypeError, "Invalid index parameter, must be numeric");
 
     if (!_pm_remove_group(self, index)) {
         PyErr_Format(
             PyExc_IndexError,
-            "Invalid index. Expected an index between 0 and %zd but got: %zd", index,
-            self->g_used - 1);
+            "Invalid index. Expected an index between 0 and %zd but got: %zd",
+            self->g_used - 1, index);
         return NULL;
     }
 
@@ -220,6 +230,12 @@ pm_get_groups(ParticleManager *self, void *closure)
     return groups;
 }
 
+static PyObject *
+pm_get_num_groups(ParticleManager *self, void *closure)
+{
+    return PyLong_FromSsize_t(self->g_used);
+}
+
 /* ===================================================================== */
 
 static PyMethodDef PM_methods[] = {
@@ -231,6 +247,7 @@ static PyMethodDef PM_methods[] = {
 static PyGetSetDef PM_attributes[] = {
     {"num_particles", (getter)pm_get_num_particles, NULL, NULL, NULL},
     {"groups", (getter)pm_get_groups, NULL, NULL, NULL},
+    {"num_groups", (getter)pm_get_num_groups, NULL, NULL, NULL},
     {NULL, 0, NULL, NULL, NULL}};
 
 static PyTypeObject ParticleManagerType = {
@@ -239,7 +256,6 @@ static PyTypeObject ParticleManagerType = {
     .tp_basicsize = sizeof(ParticleManager),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = (newfunc)pm_new,
-    .tp_init = (initproc)pm_init,
     .tp_str = (reprfunc)pm_str,
     .tp_repr = (reprfunc)pm_str,
     .tp_dealloc = (destructor)pm_dealloc,

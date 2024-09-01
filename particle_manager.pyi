@@ -19,6 +19,7 @@ SPAWN_POINT: int = 0
 
 class ParticleManager:
     num_particles: int
+    num_groups: int
     groups: List[Tuple[List[Tuple[pygame.Surface, Coord]], int]]
 
     def __init__(self, start_groups_size: int = 10) -> None: ...

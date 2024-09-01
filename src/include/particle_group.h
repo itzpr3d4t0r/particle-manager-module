@@ -27,6 +27,29 @@ dealloc_group(ParticleGroup *g)
 }
 
 PyObject *
+group_str(ParticleGroup *g)
+{
+    PyObject *gx, *gy;
+    gx = PyFloat_FromDouble(g->grav_x);
+    if (!gx)
+        return NULL;
+    gy = PyFloat_FromDouble(g->grav_y);
+    if (!gy) {
+        Py_DECREF(gx);
+        return NULL;
+    }
+
+    PyObject *str = PyUnicode_FromFormat(
+        "<particles: %zd | images: %zd | blend: %d | grav: (%R, %R)>",
+        g->n_particles, g->n_images, g->blend_flag, gx, gy);
+
+    Py_DECREF(gx);
+    Py_DECREF(gy);
+
+    return str;
+}
+
+PyObject *
 pythonify_group(ParticleGroup *g)
 {
     PyObject *tup = PyTuple_New(2);
@@ -74,4 +97,23 @@ pythonify_group(ParticleGroup *g)
     PyTuple_SET_ITEM(tup, 0, blit_list);
 
     return tup;
+}
+
+PyObject *
+get_group_str_list(ParticleGroup *groups, Py_ssize_t n_groups)
+{
+    PyObject *list = PyList_New(n_groups);
+    if (!list)
+        return NULL;
+
+    for (Py_ssize_t i = 0; i < n_groups; i++) {
+        PyObject *g = group_str(&groups[i]);
+        if (!g) {
+            Py_DECREF(list);
+            return NULL;
+        }
+        PyList_SET_ITEM(list, i, g);
+    }
+
+    return list;
 }
