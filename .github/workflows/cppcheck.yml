@@ -1,0 +1,29 @@
+name: C++ Code Quality
+
+# Run cppcheck on src_c changes to main branch, or any PR to main.
+on:
+  push:
+    branches: main
+    paths:
+      - 'src/**'
+
+  pull_request:
+    branches: main
+    paths:
+      - 'src/**'
+
+jobs:
+  run-cppcheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-mark hold grub-efi-amd64-signed
+          sudo apt-get update --fix-missing
+          sudo apt-get upgrade
+          sudo apt install cppcheck
+      - name: Run Static Checker
+        run: cppcheck src_c --force --enable=performance,portability,warning
