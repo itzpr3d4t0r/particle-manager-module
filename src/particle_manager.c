@@ -41,8 +41,7 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
             break;
     }
 
-    group->grav_x = gx;
-    group->grav_y = gy;
+    group->gravity = (vec2){gx, gy};
     group->n_images = imgs_list_size;
     group->n_particles = n_particles;
 
@@ -53,10 +52,9 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 
     for (Py_ssize_t k = 0; k < group->n_particles; k++) {
         Particle *const p = &particles[k];
-        p->x = x;
-        p->y = y;
-        p->vx = rand_x ? rand_between(vx_min, vx_max) : vx_min;
-        p->vy = rand_y ? rand_between(vy_min, vy_max) : vy_min;
+        p->pos = (vec2){x, y};
+        p->vel = (vec2){rand_x ? rand_between(vx_min, vx_max) : vx_min,
+                        rand_y ? rand_between(vy_min, vy_max) : vy_min};
         p->energy = group->n_images - 1;
     }
 
@@ -196,12 +194,8 @@ pm_update(ParticleManager *self, PyObject *arg)
     for (Py_ssize_t j = 0; j < self->g_used; j++) {
         ParticleGroup *group = &self->groups[j];
         for (Py_ssize_t i = 0; i < group->n_particles; i++) {
-            Particle *p = &group->particles[i];
-            particle_move(p, dt);
-            if (group->grav_x)
-                p->x += group->grav_x * dt;
-            if (group->grav_y)
-                p->y += group->grav_y * dt;
+            Particle *const p = &group->particles[i];
+            particle_move(p, dt, group->gravity);
             p->energy = MAX(0.0f, p->energy - dt);
         }
     }
@@ -245,6 +239,29 @@ pm_get_num_groups(ParticleManager *self, void *closure)
     return PyLong_FromSsize_t(self->g_used);
 }
 
+static PyObject *
+pm_rand_point_in_circle(PyObject *_null, PyObject *const *args, Py_ssize_t nargs)
+{
+    float x, y, r;
+    float r_x, r_y;
+
+    if (nargs != 3)
+        return RAISE(PyExc_TypeError, "Invalid number of arguments");
+
+    if (!FloatFromObj(args[0], &x) || !FloatFromObj(args[1], &y) ||
+        !FloatFromObj(args[2], &r))
+        return RAISE(PyExc_TypeError, "Invalid arguments, expected 3 floats");
+
+    const float r_sqr = r * r;
+
+    do {
+        r_x = r * (random() * 2 - 1);
+        r_y = r * (random() * 2 - 1);
+    } while (r_x * r_x + r_y * r_y > r_sqr);
+
+    return TupleFromDoublePair(x + r_x, y + r_y);
+}
+
 /* ===================================================================== */
 
 static PyMethodDef PM_methods[] = {
@@ -258,6 +275,11 @@ static PyGetSetDef PM_attributes[] = {
     {"groups", (getter)pm_get_groups, NULL, NULL, NULL},
     {"num_groups", (getter)pm_get_num_groups, NULL, NULL, NULL},
     {NULL, 0, NULL, NULL, NULL}};
+
+static PyMethodDef _module_methods[] = {
+    {"rand_point_in_circle", (PyCFunction)pm_rand_point_in_circle, METH_FASTCALL,
+     NULL},
+    {NULL, NULL, 0, NULL}};
 
 static PyTypeObject ParticleManagerType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "particle_manager.ParticleManager",
@@ -277,6 +299,7 @@ static struct PyModuleDef PM_module = {
     .m_name = "particle_manager",
     .m_doc = "Module that provides a fast Particle Manager",
     .m_size = -1,
+    .m_methods = _module_methods,
 };
 
 PyMODINIT_FUNC

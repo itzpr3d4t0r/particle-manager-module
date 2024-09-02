@@ -50,6 +50,11 @@
 
 #define RADTODEG(x) ((x) * 57.295779513082320876798154814105)
 
+typedef struct {
+    float x;
+    float y;
+} vec2;
+
 static FORCEINLINE int
 IntFromObj(PyObject *obj, int *val)
 {

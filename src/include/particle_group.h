@@ -7,8 +7,7 @@ typedef struct {
     PyObject **images;
     Py_ssize_t n_images;
     int blend_flag;
-    float grav_x;
-    float grav_y;
+    vec2 gravity;
 } ParticleGroup;
 
 void
@@ -30,10 +29,10 @@ PyObject *
 group_str(ParticleGroup *g)
 {
     PyObject *gx, *gy;
-    gx = PyFloat_FromDouble(g->grav_x);
+    gx = PyFloat_FromDouble(g->gravity.x);
     if (!gx)
         return NULL;
-    gy = PyFloat_FromDouble(g->grav_y);
+    gy = PyFloat_FromDouble(g->gravity.y);
     if (!gy) {
         Py_DECREF(gx);
         return NULL;
@@ -83,7 +82,7 @@ pythonify_group(ParticleGroup *g)
         Py_INCREF(img);
         PyTuple_SET_ITEM(blit_item, 0, img);
 
-        PyObject *pos = TupleFromDoublePair(p->x, p->y);
+        PyObject *pos = TupleFromDoublePair(p->pos.x, p->pos.y);
         if (!pos) {
             Py_DECREF(blit_list);
             Py_DECREF(tup);
