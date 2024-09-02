@@ -1,14 +1,15 @@
 name: C++ Code Quality
 
-# Run cppcheck on src_c changes to main branch, or any PR to main.
+# Run cppcheck on src_c changes to master branch, or any PR to master.
 on:
+  # on commit
   push:
-    branches: main
+    branches: master
     paths:
       - 'src/**'
 
   pull_request:
-    branches: main
+    branches: master
     paths:
       - 'src/**'
 
