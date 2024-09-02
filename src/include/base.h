@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))

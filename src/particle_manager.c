@@ -55,7 +55,9 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
         p->pos = (vec2){x, y};
         p->vel = (vec2){rand_x ? rand_between(vx_min, vx_max) : vx_min,
                         rand_y ? rand_between(vy_min, vy_max) : vy_min};
-        p->energy = group->n_images - 1;
+        p->energy = (float)(group->n_images - 1);
+        p->acc = (vec2){0, 0};
+        p->update_speed = 1.0f;
     }
 
     if (!(group->images = PyMem_New(PyObject *, group->n_images)))
@@ -192,12 +194,9 @@ pm_update(ParticleManager *self, PyObject *arg)
         return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
 
     for (Py_ssize_t j = 0; j < self->g_used; j++) {
-        ParticleGroup *group = &self->groups[j];
-        for (Py_ssize_t i = 0; i < group->n_particles; i++) {
-            Particle *const p = &group->particles[i];
-            particle_move(p, dt, group->gravity);
-            p->energy = MAX(0.0f, p->energy - dt);
-        }
+        ParticleGroup *g = &self->groups[j];
+        for (Py_ssize_t i = 0; i < g->n_particles; i++)
+            particle_update(&g->particles[i], dt, g->gravity);
     }
 
     Py_RETURN_NONE;
@@ -318,7 +317,7 @@ PyInit_particle_manager(void)
     if (PyModule_AddIntConstant(module, "SPAWN_POINT", SPAWN_POINT) == -1)
         return NULL;
 
-    init_genrand(time(NULL));
+    init_genrand((uint32_t)time(NULL));
 
     return module;
 }
