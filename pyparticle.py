@@ -2,14 +2,23 @@ from pygame import Surface
 
 
 class PyParticle:
-    images = [Surface((size, size)) for size in range(10, 0, -1)]
-    for surf in images:
-        surf.fill((255, 255, 255))
+    img_sequences = [
+        [Surface((s, s)) for s in range(10, 20, 1)],
+        [Surface((s, s)) for s in range(1, 5, 1)],
+        [Surface((s, s)) for s in range(50, 101, 10)],
+    ]
 
-    def __init__(self, pos, vel):
-        self.x, self.y = pos
-        self.vx, self.vy = vel
-        self.img_ix = 0
+    def __init__(self, x, y, vx, vy, accx, accy):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.acc_x = accx
+        self.acc_y = accy
+        self.seq_ix = 0
+        self.time = 0
+        self.update_speed = 1
+        self.images = self.img_sequences[0]
 
     def update(self, dt):
         self.x += self.vx * dt

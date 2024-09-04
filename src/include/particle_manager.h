@@ -1,4 +1,5 @@
 #pragma once
+
 #include "particle_group.h"
 #include "MT19937.h"
 #include <math.h>
@@ -49,112 +50,121 @@ pm_dealloc(ParticleManager *self)
 }
 
 /* =======================| INTERNAL FUNCTIONALITY |======================= */
-//
-// static int
-//_pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
-//{
-//    float x, y;
-//    float vx_min = 0, vx_max = 0;
-//    float vy_min = 0, vy_max = 0;
-//    float gx = 0, gy = 0;
-//    int rand_x = 0, rand_y = 0;
-//    int n_particles;
-//    Py_ssize_t imgs_list_size;
-//
-//    if (!IntFromObj(args[0], &n_particles) || n_particles <= 0)
-//        return IRAISE(PyExc_TypeError, "Invalid number of particles");
-//
-//    if (!TwoFloatsFromObj(args[1], &x, &y))
-//        return IRAISE(PyExc_TypeError, "Invalid type for paramenter: pos");
-//
-//    if (!PyList_Check(args[2]) || (imgs_list_size = PyList_GET_SIZE(args[2])) == 0)
-//        return IRAISE(PyExc_TypeError, "Invalid images list");
-//
-//    switch (nargs) {
-//        case 6:
-//            if (!TwoFloatsFromObj(args[5], &gx, &gy))
-//                return IRAISE(PyExc_TypeError,
-//                              "Invalid gravity. Must be a tuple of 2 floats");
-//        case 5:
-//            if (!TwoFloatsAndBoolFromTuple(args[4], &vy_min, &vy_max, &rand_y))
-//                return IRAISE(
-//                    PyExc_TypeError,
-//                    "Invalid vy settings, must be a tuple of 2 floats and a bool");
-//        case 4:
-//            if (!TwoFloatsAndBoolFromTuple(args[3], &vx_min, &vx_max, &rand_x))
-//                return IRAISE(
-//                    PyExc_TypeError,
-//                    "Invalid vx settings, must be a tuple of 2 floats and a bool");
-//            break;
-//    }
-//
-//    group->gravity = (vec2){gx, gy};
-//    group->n_images = imgs_list_size;
-//    group->n_particles = n_particles;
-//
-//    if (!(group->particles = PyMem_New(Particle, n_particles)))
-//        return IRAISE(PyExc_MemoryError, "Could not allocate memory for
-//        particles");
-//
-//    Particle *const particles = group->particles;
-//
-//    for (Py_ssize_t k = 0; k < group->n_particles; k++) {
-//        Particle *const p = &particles[k];
-//        p->pos = (vec2){x, y};
-//        p->vel = (vec2){rand_x ? rand_between(vx_min, vx_max) : vx_min,
-//                        rand_y ? rand_between(vy_min, vy_max) : vy_min};
-//        p->energy = (float)(group->n_images - 1);
-//        p->acc = (vec2){0, 0};
-//        p->update_speed = 1.0f;
-//    }
-//
-//    if (!(group->images = PyMem_New(PyObject *, group->n_images)))
-//        return IRAISE(PyExc_MemoryError, "Could not allocate memory for images");
-//
-//    PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
-//    for (Py_ssize_t k = 0; k < group->n_images; k++) {
-//        Py_INCREF(list_items[k]);
-//        group->images[k] = list_items[k];
-//    }
-//
-//    return 1;
-//}
-//
-// static int
-//_pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
-//{
-//    int blend_flag = 0;
-//    if (!IntFromObj(args[0], &blend_flag)) {
-//        PyErr_SetString(PyExc_TypeError, "Invalid blend_flag type");
-//        return 0;
-//    }
-//    group->blend_flag = blend_flag;
-//
-//    int kind;
-//    if (!IntFromObj(args[1], &kind)) {
-//        PyErr_SetString(PyExc_TypeError, "Invalid spawn_type type");
-//        return 0;
-//    }
-//
-//    nargs -= 2;
-//
-//    switch (kind) {
-//        case SPAWN_POINT:
-//            if (nargs < 3 || nargs > 6) {
-//                PyErr_SetString(PyExc_TypeError,
-//                                "SPAWN_POINT spawn_type requires between 3 "
-//                                "and 6 arguments.");
-//                return 0;
-//            }
-//            return _pm_g_add_point(group, args + 2, nargs);
-//        default:
-//            PyErr_SetString(PyExc_NotImplementedError,
-//                            "The supplied spawn_type doesn't exist.");
-//            return 0;
-//    }
-//
-//    return 1;
-//}
+
+static int
+_pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
+{
+    int n_particles;
+    float x, y;
+    Py_ssize_t imgs_list_size;
+
+    generator vel_x_g = {0};
+    generator vel_y_g = {0};
+    generator acc_x_g = {0};
+    generator acc_y_g = {0};
+    generator uspeed_g = {1.0, 0.0, 0};
+    generator time_g = {0};
+
+    vec2 gravity = {0};
+
+    if (!IntFromObj(args[0], &n_particles) || n_particles <= 0)
+        return IRAISE(PyExc_TypeError, "Invalid number of particles");
+
+    if (!TwoFloatsFromObj(args[1], &x, &y))
+        return IRAISE(PyExc_TypeError, "Invalid type for paramenter: pos");
+
+    if (!PyList_Check(args[2]) || (imgs_list_size = PyList_GET_SIZE(args[2])) == 0)
+        return IRAISE(PyExc_TypeError, "Invalid images list");
+
+    switch (nargs) {
+        case 10:
+            if (!TwoFloatsFromObj(args[9], &gravity.x, &gravity.y))
+                return IRAISE(PyExc_TypeError,
+                              "Invalid gravity. Must be a tuple of 2 floats");
+        case 9:
+            if (!TwoFloatsAndBoolFromTuple(args[8], &time_g.min, &time_g.max,
+                                           &time_g.randomize))
+                return IRAISE(PyExc_TypeError,
+                              "Invalid time settings, must be a tuple of 2 floats "
+                              "and a bool");
+        case 8:
+            if (!TwoFloatsAndBoolFromTuple(args[7], &uspeed_g.min, &uspeed_g.max,
+                                           &uspeed_g.randomize))
+                return IRAISE(PyExc_TypeError,
+                              "Invalid update_speed settings, must be a tuple of 2 "
+                              "floats and a bool");
+        case 7:
+            if (!TwoFloatsAndBoolFromTuple(args[6], &acc_y_g.min, &acc_y_g.max,
+                                           &acc_y_g.randomize))
+                return IRAISE(PyExc_TypeError,
+                              "Invalid acc_y settings, must be a tuple of 2 floats "
+                              "and a bool");
+        case 6:
+            if (!TwoFloatsAndBoolFromTuple(args[5], &acc_x_g.min, &acc_x_g.max,
+                                           &acc_x_g.randomize))
+                return IRAISE(PyExc_TypeError,
+                              "Invalid acc_x settings, must be a tuple of 2 floats "
+                              "and a bool");
+        case 5:
+            if (!TwoFloatsAndBoolFromTuple(args[4], &vel_y_g.min, &vel_y_g.max,
+                                           &vel_x_g.randomize))
+                return IRAISE(
+                    PyExc_TypeError,
+                    "Invalid vy settings, must be a tuple of 2 floats and a bool");
+        case 4:
+            if (!TwoFloatsAndBoolFromTuple(args[3], &vel_x_g.min, &vel_x_g.max,
+                                           &vel_x_g.randomize))
+                return IRAISE(
+                    PyExc_TypeError,
+                    "Invalid vx settings, must be a tuple of 2 floats and a bool");
+    }
+
+    PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
+    if (!init_group(group, n_particles, list_items, imgs_list_size))
+        return IRAISE(PyExc_MemoryError,
+                      "Failed to allocate enough memory for group");
+
+    setup_particles_point(group, x, y, &vel_x_g, &vel_y_g, &acc_x_g, &acc_y_g,
+                          &time_g, &uspeed_g);
+
+    group->gravity = gravity;
+
+    return 1;
+}
+
+static int
+_pm_add_group(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
+{
+    if (!IntFromObj(args[0], &group->blend_flag)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid blend_flag type");
+        return 0;
+    }
+
+    int kind;
+    if (!IntFromObj(args[1], &kind)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid spawn_type type");
+        return 0;
+    }
+
+    nargs -= 2;
+
+    switch (kind) {
+        case SPAWN_POINT:
+            if (nargs < 3 || nargs > 10) {
+                PyErr_SetString(PyExc_TypeError,
+                                "SPAWN_POINT spawn_type requires between 3 "
+                                "and 10 arguments");
+                return 0;
+            }
+            return _pm_g_add_point(group, args + 2, nargs);
+        default:
+            PyErr_SetString(PyExc_NotImplementedError,
+                            "The supplied spawn_type doesn't exist.");
+            return 0;
+    }
+
+    return 1;
+}
 
 /* ======================================================================== */
 
@@ -175,8 +185,8 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 
     ParticleGroup *group = &self->groups[self->g_used];
 
-    //    if (!_pm_add_group(group, args, nargs))
-    //        return NULL;
+    if (!_pm_add_group(group, args, nargs))
+        return NULL;
 
     self->g_used++;
 
