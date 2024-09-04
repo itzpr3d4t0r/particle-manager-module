@@ -27,4 +27,4 @@ jobs:
           sudo apt-get upgrade
           sudo apt install cppcheck
       - name: Run Static Checker
-        run: cppcheck src_c --force --enable=performance,portability,warning
+        run: cppcheck src --force --enable=performance,portability,warning
