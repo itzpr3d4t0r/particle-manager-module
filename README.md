@@ -1,5 +1,5 @@
-# Particle Manager
-This Cpython module aims to deliver a fast particle manager by avoiding having to deal with individual particles in python.
+# Itz Particle Manager Module
+This CPython module aims to deliver a fast particle manager by avoiding having to deal with individual particles in python.
 
 # Installation
 Once you navigate to the project's directory you can:
