@@ -1,10 +1,4 @@
-from particle_manager import ParticleManager, GROUP_POINT
-from pygame import Surface
+from itz_particle_manager import ParticleManager, SPAWN_POINT
 
-images = [Surface((size, size)) for size in range(10, 0, -1)]
 p = ParticleManager()
-
-
-for _ in range(23):
-    p.add_group(GROUP_POINT, 50, (500, 500), images, 100, (1,), (1,))
-    print(p)
+print(p)

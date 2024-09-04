@@ -448,7 +448,7 @@ TupleFromIntPair(int val1, int val2)
 }
 
 static FORCEINLINE PyObject *
-PointList_FromArrayDouble(double *array, int arr_length)
+PointList_FromArrayDouble(const double *array, int arr_length)
 {
     /*Takes an even length double array [1, 2, 3, 4, 5, 6, 7, 8] and returns
      * a list of points:
@@ -479,7 +479,7 @@ PointList_FromArrayDouble(double *array, int arr_length)
 }
 
 static FORCEINLINE PyObject *
-PointTuple_FromArrayDouble(double *array, int arr_length)
+PointTuple_FromArrayDouble(const double *array, int arr_length)
 {
     /*Takes an even length double array [1, 2, 3, 4, 5, 6, 7, 8] and returns
      * a tuple of points:

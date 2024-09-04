@@ -86,6 +86,7 @@ setup_group(ParticleGroup *g, PyObject ***images, Py_ssize_t n_images,
         g->p_time.data[i] = genrand_from(time_g);
         g->u_fac.data[i] = genrand_from(update_speed_g);
     }
+    g->max_ix = g->n_particles - 1;
 
     return 1;
 }

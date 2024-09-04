@@ -1,21 +1,24 @@
 from random import random
 
 import pygame
-from particle_manager import ParticleManager, SPAWN_POINT
+from itz_particle_manager import ParticleManager, SPAWN_POINT
 from pygame import Surface
 
 from pyparticle import PyParticle
 
 pygame.init()
 
-images = [Surface((size, size)) for size in range(1, 11)]
+images = [Surface((1, 1)) for size in range(1, 11)]
 for surf in images:
     surf.fill((255, 255, 255))
 
+PARTICLE_NUM = 30000
+
 PM = ParticleManager()
 PM.add_group(
+    1,
     SPAWN_POINT,
-    100,  # number of particles
+    PARTICLE_NUM,  # number of particles
     (500, 500),  # spawn pos
     images,  # image sequence
     (-1, 1, True),  # x velocity info
@@ -23,7 +26,8 @@ PM.add_group(
 )
 
 particles = [
-    PyParticle((500, 500), (random() * 2 - 1, random() * 2 - 1)) for _ in range(100)
+    PyParticle((500, 500), (random() * 2 - 1, random() * 2 - 1))
+    for _ in range(PARTICLE_NUM)
 ]
 
 screen = pygame.display.set_mode((1000, 1000))
@@ -61,6 +65,7 @@ while True:
                 use_pm = not use_pm
         elif event.type == pygame.MOUSEBUTTONUP:
             PM.add_group(
+                1,
                 SPAWN_POINT,
                 100,
                 pygame.mouse.get_pos(),
@@ -68,4 +73,3 @@ while True:
                 (-1, 1, True),
                 (-1, 1, True),
             )
-            print(PM)
