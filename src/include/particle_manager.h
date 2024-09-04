@@ -107,7 +107,7 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
                               "and a bool");
         case 5:
             if (!TwoFloatsAndBoolFromTuple(args[4], &vel_y_g.min, &vel_y_g.max,
-                                           &vel_x_g.randomize))
+                                           &vel_y_g.randomize))
                 return IRAISE(
                     PyExc_TypeError,
                     "Invalid vy settings, must be a tuple of 2 floats and a bool");
@@ -194,6 +194,34 @@ pm_add_group(ParticleManager *self, PyObject *const *args, Py_ssize_t nargs)
 }
 
 static PyObject *
+pm_update(ParticleManager *self, PyObject *arg)
+{
+    float dt;
+    if (!FloatFromObj(arg, &dt))
+        return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
+
+    Py_ssize_t i, j;
+    for (j = 0; j < self->g_used; j++) {
+        ParticleGroup *g = &self->groups[j];
+        float *g_pos = g->p_pos.data;
+        float *g_vel = g->p_vel.data;
+        float *g_acc = g->p_acc.data;
+
+        for (i = 0; i < g->n_particles; i++) {
+            g_acc[i * 2] += g->gravity.x;
+            g_acc[i * 2 + 1] += g->gravity.y;
+            g_vel[i * 2] += g_acc[i * 2] * dt;
+            g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
+            g_pos[i * 2] += g_vel[i * 2] * dt;
+            g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
+            //            g->p_time.data[i] += dt * g->u_fac.data[i];
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 pm_str(ParticleManager *self)
 {
     Py_ssize_t n = 0, i;
@@ -220,16 +248,36 @@ pm_get_num_groups(ParticleManager *self, void *closure)
     return PyLong_FromSsize_t(self->g_used);
 }
 
+static PyObject *
+pm_get_groups(ParticleManager *self, void *closure)
+{
+    PyObject *list = PyList_New(self->g_used);
+    if (!list)
+        return PyErr_NoMemory();
+
+    for (Py_ssize_t i = 0; i < self->g_used; i++) {
+        PyObject *group = pythonify_group(&self->groups[i]);
+        if (!group) {
+            Py_DECREF(list);
+            return NULL;
+        }
+        PyList_SET_ITEM(list, i, group);
+    }
+
+    return list;
+}
+
 /* ===================================================================== */
 
 static PyMethodDef PM_methods[] = {
-    //    {"update", (PyCFunction)pm_update, METH_O, NULL},
+    {"update", (PyCFunction)pm_update, METH_O, NULL},
     {"add_group", (PyCFunction)pm_add_group, METH_FASTCALL, NULL},
     {NULL, NULL, 0, NULL}};
 
 static PyGetSetDef PM_attributes[] = {
     {"num_particles", (getter)pm_get_num_particles, NULL, NULL, NULL},
     {"num_groups", (getter)pm_get_num_groups, NULL, NULL, NULL},
+    {"groups", (getter)pm_get_groups, NULL, NULL, NULL},
     {NULL, 0, NULL, NULL, NULL}};
 
 static PyTypeObject ParticleManagerType = {

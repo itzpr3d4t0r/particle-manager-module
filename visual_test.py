@@ -2,15 +2,19 @@ from random import random
 
 import pygame
 from itz_particle_manager import ParticleManager, SPAWN_POINT
-from pygame import Surface
 
 from pyparticle import PyParticle
 
 pygame.init()
 
-images = [Surface((1, 1)) for size in range(1, 11)]
-for surf in images:
-    surf.fill((255, 255, 255))
+imgs = [
+    [pygame.Surface((s, s)) for s in range(10, 20, 1)],
+    [pygame.Surface((s, s)) for s in range(1, 5, 1)],
+    [pygame.Surface((s, s)) for s in range(50, 101, 10)],
+]
+for seq in imgs:
+    for i, img in enumerate(seq):
+        img.fill(-1)
 
 PARTICLE_NUM = 30000
 
@@ -20,14 +24,14 @@ PM.add_group(
     SPAWN_POINT,
     PARTICLE_NUM,  # number of particles
     (500, 500),  # spawn pos
-    images,  # image sequence
+    imgs,  # image sequence
     (-1, 1, True),  # x velocity info
     (-1, 1, True),  # y velocity info
 )
 
 particles = [
-    PyParticle((500, 500), (random() * 2 - 1, random() * 2 - 1))
-    for _ in range(PARTICLE_NUM)
+    PyParticle(500, 500, random() * 2 - 1, random() * 2 - 1, 0, 0) for _ in
+    range(PARTICLE_NUM)
 ]
 
 screen = pygame.display.set_mode((1000, 1000))
@@ -49,7 +53,7 @@ while True:
     else:
         for p in particles:
             p.update(dt)
-        screen.fblits([(p.images[p.img_ix], (p.x, p.y)) for p in particles])
+        screen.fblits([(p.images[0], (p.x, p.y)) for p in particles])
 
     screen.blit(font.render(f"fps: {int(clock.get_fps())}", True, "red"))
     screen.blit(font.render(f"particles: {PM.num_particles}", True, "red"), (0, 30))
@@ -69,7 +73,7 @@ while True:
                 SPAWN_POINT,
                 100,
                 pygame.mouse.get_pos(),
-                images,
+                imgs,
                 (-1, 1, True),
                 (-1, 1, True),
             )

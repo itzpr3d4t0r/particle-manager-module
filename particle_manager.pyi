@@ -1,4 +1,4 @@
-from typing import Sequence, Union, List, Tuple
+from typing import Sequence, Union, Tuple, List
 
 import pygame
 
@@ -21,13 +21,17 @@ gravity
 """
 SPAWN_POINT: int = 0
 
+
 class ParticleManager:
     num_particles: int
     num_groups: int
-    # groups: List[Tuple[List[Tuple[pygame.Surface, Coord]], int]]
+    groups: List[Tuple[List[Tuple[pygame.Surface, Coord]], int]]
+
     def __init__(self) -> None: ...
+
     def add_group(self, blend_flag: int, spawn_type: int, *args) -> None: ...
-    # def remove_group(self, group_index: int) -> None: ...
-    # def update(self, dt: float) -> None: ...
+
+    def update(self, dt: float) -> None: ...
+
 
 def rand_point_in_circle(x: float, y: float, r: float) -> Tuple[float, float]: ...

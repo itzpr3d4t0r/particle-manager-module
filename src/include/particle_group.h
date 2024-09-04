@@ -47,6 +47,7 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
 
     memset(g->images, 0, sizeof(PyObject **) * n_img_sequences);
     memset(g->n_img_frames, 0, sizeof(Py_ssize_t) * n_img_sequences);
+    memset(g->p_img_ix, 0, sizeof(char) * n_particles);
 
     /* initialize the image sequences */
     Py_ssize_t i, j;
@@ -124,6 +125,57 @@ setup_particles_point(ParticleGroup *g, float x, float y, const generator *vel_x
     }
 
     g->max_ix = g->n_particles - 1;
+}
+
+PyObject *
+pythonify_group(ParticleGroup *g)
+{
+    /* creates a python tuple of size 2 containing a list of (img, pos) as first
+     * element and a blend_flag as second element */
+    PyObject *group = PyTuple_New(2);
+    if (!group)
+        return NULL;
+
+    PyObject *blend_flag = PyLong_FromLong(g->blend_flag);
+    if (!blend_flag) {
+        Py_DECREF(group);
+        return NULL;
+    }
+    PyTuple_SET_ITEM(group, 1, blend_flag);
+
+    PyObject *blit_list = PyList_New(g->n_particles);
+    if (!blit_list) {
+        Py_DECREF(group);
+        return NULL;
+    }
+
+    for (Py_ssize_t i = 0; i < g->n_particles; i++) {
+        PyObject *particle = PyTuple_New(2);
+        if (!particle) {
+            Py_DECREF(blit_list);
+            Py_DECREF(group);
+            return NULL;
+        }
+
+        PyObject *img = g->images[(int)g->p_img_ix[i]][0];
+        Py_INCREF(img);
+        PyTuple_SET_ITEM(particle, 0, img);
+
+        PyObject *pos =
+            TupleFromDoublePair(g->p_pos.data[i * 2], g->p_pos.data[i * 2 + 1]);
+        if (!pos) {
+            Py_DECREF(blit_list);
+            Py_DECREF(group);
+            return NULL;
+        }
+
+        PyTuple_SET_ITEM(particle, 1, pos);
+        PyList_SET_ITEM(blit_list, i, particle);
+    }
+
+    PyTuple_SET_ITEM(group, 0, blit_list);
+
+    return group;
 }
 
 void
