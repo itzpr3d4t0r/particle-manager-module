@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
@@ -72,4 +74,16 @@ float FORCEINLINE
 rand_between(float lo, float hi)
 {
     return (float)(lo + (hi - lo) * random());
+}
+
+typedef struct {
+    float min;
+    float max;
+    int randomize;
+} generator;
+
+float FORCEINLINE
+genrand_from(const generator *g)
+{
+    return g->randomize ? rand_between(g->min, g->max) : g->min;
 }

@@ -1,118 +1,110 @@
 #pragma once
-#include "particle.h"
+
+#include "base.h"
+#include "f_vec.h"
+#include "MT19937.h"
 
 typedef struct {
-    Particle *particles;
-    Py_ssize_t n_particles;
-    PyObject **images;
-    Py_ssize_t n_images;
+    /* particles data */
+    f_arr p_pos;            /* positions array */
+    f_arr p_vel;            /* velocities array */
+    f_arr p_acc;            /* accelerations array */
+    f_arr p_time;           /* times array*/
+    f_arr u_fac;            /* update speed factor array */
+    Py_ssize_t n_particles; /* number of particles */
+    Py_ssize_t max_ix;      /* maximum index of an active particle */
+
+    /* images data */
+    PyObject ***images;       /* array of image sequences */
+    Py_ssize_t *n_img_frames; /* number of frames in each image sequence */
+    Py_ssize_t n_img_sequences;
+
+    /* additional settings */
     int blend_flag;
     vec2 gravity;
 } ParticleGroup;
 
+int
+init_group(ParticleGroup *g, Py_ssize_t n_particles, Py_ssize_t n_img_sequences)
+{
+    g->n_particles = n_particles;
+    g->n_img_sequences = n_img_sequences;
+    g->max_ix = -1;
+
+    if (!farr_init(&g->p_pos, n_particles) || !farr_init(&g->p_vel, n_particles) ||
+        !farr_init(&g->p_acc, n_particles) || !farr_init(&g->p_time, n_particles) ||
+        !farr_init(&g->u_fac, n_particles))
+        return 0;
+
+    INIT_MEMORY(g->images, PyObject **, n_img_sequences, 0, {})
+    INIT_MEMORY(g->n_img_frames, Py_ssize_t, n_img_sequences, 0, {})
+
+    memset(g->images, 0, sizeof(PyObject **) * n_img_sequences);
+    memset(g->n_img_frames, 0, sizeof(Py_ssize_t) * n_img_sequences);
+
+    g->blend_flag = 0;
+    g->gravity = (vec2){0.0f, 0.0f};
+
+    return 1;
+}
+
+int
+setup_group(ParticleGroup *g, PyObject ***images, Py_ssize_t n_images,
+            const generator *pos_g, const generator *vel_g, const generator *acc_g,
+            const generator *time_g, const generator *update_speed_g)
+{
+    Py_ssize_t i, j;
+
+    /* initialize the image sequences */
+    for (i = 0; i < n_images; i++) {
+        PyObject *seq = images[i];
+        if (!PyList_Check(seq)) {
+            PyErr_SetString(PyExc_TypeError, "images must be a list of sequences");
+            return 0;
+        }
+
+        Py_ssize_t n_frames = PySequence_Fast_GET_SIZE(seq);
+        g->images[i] = PyMem_New(PyObject *, n_frames);
+        if (!g->images[i])
+            return 0;
+
+        PyObject **seq_items = PySequence_Fast_ITEMS(seq);
+        for (j = 0; j < n_frames; j++) {
+            PyObject *img = seq_items[j];
+            Py_INCREF(img);
+            g->images[i][j] = img;
+        }
+
+        g->n_img_frames[i] = n_frames;
+    }
+
+    /* initialize the particles from RNG generators */
+    for (i = 0; i < g->n_particles; i++) {
+        g->p_pos.data[i] = genrand_from(pos_g);
+        g->p_vel.data[i] = genrand_from(vel_g);
+        g->p_acc.data[i] = genrand_from(acc_g);
+        g->p_time.data[i] = genrand_from(time_g);
+        g->u_fac.data[i] = genrand_from(update_speed_g);
+    }
+
+    return 1;
+}
+
 void
 dealloc_group(ParticleGroup *g)
 {
-    /* free the particles array first */
-    if (g->particles)
-        PyMem_Free(g->particles);
+    farr_free(&g->p_pos);
+    farr_free(&g->p_vel);
+    farr_free(&g->p_acc);
+    farr_free(&g->p_time);
+    farr_free(&g->u_fac);
 
-    if (g->images) {
-        for (Py_ssize_t k = 0; k < g->n_images; k++)
-            Py_DECREF(g->images[k]);
-
-        PyMem_Free(g->images);
-    }
-}
-
-PyObject *
-group_str(ParticleGroup *g)
-{
-    PyObject *gx, *gy;
-    gx = PyFloat_FromDouble(g->gravity.x);
-    if (!gx)
-        return NULL;
-    gy = PyFloat_FromDouble(g->gravity.y);
-    if (!gy) {
-        Py_DECREF(gx);
-        return NULL;
+    for (Py_ssize_t i = 0; i < g->n_img_sequences; i++) {
+        for (Py_ssize_t j = 0; j < g->n_img_frames[i]; j++)
+            Py_DECREF(g->images[i][j]);
+        PyMem_Free(g->images[i]);
     }
 
-    PyObject *str = PyUnicode_FromFormat(
-        "<particles: %zd | images: %zd | blend: %d | grav: (%R, %R)>",
-        g->n_particles, g->n_images, g->blend_flag, gx, gy);
-
-    Py_DECREF(gx);
-    Py_DECREF(gy);
-
-    return str;
-}
-
-PyObject *
-pythonify_group(ParticleGroup *g)
-{
-    PyObject *tup = PyTuple_New(2);
-    if (!tup)
-        return NULL;
-
-    PyObject *flag_obj = PyLong_FromLong(g->blend_flag);
-    if (!flag_obj) {
-        Py_DECREF(tup);
-        return NULL;
-    }
-    PyTuple_SET_ITEM(tup, 1, flag_obj);
-
-    PyObject *blit_list = PyList_New(g->n_particles);
-    if (!blit_list) {
-        Py_DECREF(tup);
-        return NULL;
-    }
-
-    for (Py_ssize_t i = 0; i < g->n_particles; i++) {
-        Particle *p = &g->particles[i];
-
-        PyObject *blit_item = PyTuple_New(2);
-        if (!blit_item) {
-            Py_DECREF(blit_list);
-            Py_DECREF(tup);
-            return NULL;
-        }
-
-        PyObject *img = g->images[(int)p->energy];
-        Py_INCREF(img);
-        PyTuple_SET_ITEM(blit_item, 0, img);
-
-        PyObject *pos = TupleFromDoublePair(p->pos.x, p->pos.y);
-        if (!pos) {
-            Py_DECREF(blit_list);
-            Py_DECREF(tup);
-            return NULL;
-        }
-        PyTuple_SET_ITEM(blit_item, 1, pos);
-
-        PyList_SET_ITEM(blit_list, i, blit_item);
-    }
-
-    PyTuple_SET_ITEM(tup, 0, blit_list);
-
-    return tup;
-}
-
-PyObject *
-get_group_str_list(ParticleGroup *groups, Py_ssize_t n_groups)
-{
-    PyObject *list = PyList_New(n_groups);
-    if (!list)
-        return NULL;
-
-    for (Py_ssize_t i = 0; i < n_groups; i++) {
-        PyObject *g = group_str(&groups[i]);
-        if (!g) {
-            Py_DECREF(list);
-            return NULL;
-        }
-        PyList_SET_ITEM(list, i, g);
-    }
-
-    return list;
+    PyMem_Free(g->images);
+    PyMem_Free(g->n_img_frames);
 }

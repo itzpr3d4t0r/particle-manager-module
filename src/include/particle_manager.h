@@ -11,10 +11,10 @@ typedef struct {
 } ParticleManager;
 
 enum {
-    SPAWN_POINT,
-    SPAWN_RADIUS,
-    SPAWN_RECT,
-    SPAWN_LINE,
+    SPAWN_POINT,  /* indicates spawning at a single point */
+    SPAWN_RADIUS, /* indicates spawning within or on the border of a circle */
+    SPAWN_RECT,   /* indicates spawning within or on the border of a rectangle */
+    SPAWN_LINE,   /* indicates spawning along a line */
 };
 
 static PyObject *
@@ -22,12 +22,13 @@ pm_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     ParticleManager *self = (ParticleManager *)type->tp_alloc(type, 0);
     if (self) {
-        self->groups =
-            (ParticleGroup *)PyMem_Calloc(PM_BASE_GROUP_SIZE, sizeof(ParticleGroup));
+        self->groups = PyMem_New(ParticleGroup, PM_BASE_GROUP_SIZE);
         if (!self->groups) {
             Py_DECREF(self);
             return PyErr_NoMemory();
         }
+
+        memset(self->groups, 0, sizeof(ParticleGroup) * PM_BASE_GROUP_SIZE);
         self->g_alloc = PM_BASE_GROUP_SIZE;
         self->g_used = 0;
     }

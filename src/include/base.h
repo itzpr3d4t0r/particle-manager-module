@@ -51,6 +51,16 @@
 
 #define RADTODEG(x) ((x) * 57.295779513082320876798154814105)
 
+#define INIT_MEMORY(ptr, type, number_of, ret_val, pre_return_code) \
+                                                                    \
+    ptr = PyMem_New(type, number_of);                               \
+    if (!ptr) {                                                     \
+        {                                                           \
+            pre_return_code                                         \
+        }                                                           \
+        return ret_val;                                             \
+    }
+
 typedef struct {
     float x;
     float y;
