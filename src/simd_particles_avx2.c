@@ -48,8 +48,13 @@ _update_particles_avx2(ParticleGroup *group, float dt)
         __m256 pos_v = _mm256_loadu_ps(g_pos);
 
         acc_v = _mm256_add_ps(acc_v, grav_v);
+#if defined(__FMA__)
         vel_v = _mm256_fmadd_ps(acc_v, dt_v, vel_v);
         pos_v = _mm256_fmadd_ps(vel_v, dt_v, pos_v);
+#else
+        vel_v = _mm256_add_ps(vel_v, _mm256_mul_ps(acc_v, dt_v));
+        pos_v = _mm256_add_ps(pos_v, _mm256_mul_ps(vel_v, dt_v));
+#endif /* defined(__FMA__) */
 
         _mm256_storeu_ps(g_acc, acc_v);
         _mm256_storeu_ps(g_vel, vel_v);

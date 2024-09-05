@@ -168,6 +168,7 @@ src_files = [
     'src/particle_group.c',
     'src/simd_particles_avx2.c',
     'src/simd_particles_sse2.c',
+    'src/f_vec.c',
 ]
 
 py.extension_module(

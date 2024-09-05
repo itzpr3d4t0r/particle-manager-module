@@ -63,45 +63,6 @@ genrand_int32(void)
     return y;
 }
 
-static void
-genrand_int32_array(uint32_t *arr, int n)
-{
-    uint32_t y;
-
-    if (mti >= N) {  // Generate N words at one time
-        static const uint32_t mag01[2] = {0x0U, MATRIX_A};
-        int kk;
-
-        if (mti == N + 1)
-            init_genrand(5489U);
-
-        for (kk = 0; kk < N - M; kk++) {
-            y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-            mt[kk] = mt[kk + M] ^ (y >> 1) ^ mag01[y & 0x1U];
-        }
-        for (; kk < N - 1; kk++) {
-            y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-            mt[kk] = mt[kk + (M - N)] ^ (y >> 1) ^ mag01[y & 0x1U];
-        }
-        y = (mt[N - 1] & UPPER_MASK) | (mt[0] & LOWER_MASK);
-        mt[N - 1] = mt[M - 1] ^ (y >> 1) ^ mag01[y & 0x1U];
-
-        mti = 0;
-    }
-
-    for (int i = 0; i < n; i++) {
-        y = mt[mti++];
-
-        // Tempering
-        y ^= (y >> 11);
-        y ^= (y << 7) & 0x9d2c5680U;
-        y ^= (y << 15) & 0xefc60000U;
-        y ^= (y >> 18);
-
-        arr[i] = y;
-    }
-}
-
 // Generate a random number on [0,1]-real-interval
 static float FORCEINLINE
 rand_f(void)

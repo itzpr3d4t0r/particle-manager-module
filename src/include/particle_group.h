@@ -42,7 +42,7 @@ setup_particles_point(ParticleGroup *g, float x, float y, const generator *vel_x
                       const generator *acc_y_g, const generator *time_g,
                       const generator *update_speed_g);
 void
-_update_particles_scalar(float *g_pos, float *g_vel, float *g_acc, float dt);
+_update_particles_scalar(ParticleGroup *g, float dt);
 
 void
 update_group(ParticleGroup *g, float dt);

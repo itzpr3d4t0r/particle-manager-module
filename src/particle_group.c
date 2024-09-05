@@ -173,21 +173,21 @@ dealloc_group(ParticleGroup *g)
 }
 
 void
-_update_particles_scalar(ParticleGroup *group, float dt)
+_update_particles_scalar(ParticleGroup *g, float dt)
 {
-    float *g_pos = group->p_pos.data;
-    float *g_vel = group->p_vel.data;
-    float *g_acc = group->p_acc.data;
+    float *g_pos = g->p_pos.data;
+    float *g_vel = g->p_vel.data;
+    float *g_acc = g->p_acc.data;
 
     Py_ssize_t i;
-    for (i = 0; i < group->n_particles; i++) {
-        g_acc[i * 2] += group->gravity.x;
-        g_acc[i * 2 + 1] += group->gravity.y;
+    for (i = 0; i < g->n_particles; i++) {
+        g_acc[i * 2] += g->gravity.x;
+        g_acc[i * 2 + 1] += g->gravity.y;
         g_vel[i * 2] += g_acc[i * 2] * dt;
         g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
         g_pos[i * 2] += g_vel[i * 2] * dt;
         g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
-        group->p_time.data[i] += dt * group->u_fac.data[i];
+        g->p_time.data[i] += dt * g->u_fac.data[i];
     }
 }
 
