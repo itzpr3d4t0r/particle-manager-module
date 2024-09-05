@@ -201,22 +201,8 @@ pm_update(ParticleManager *self, PyObject *arg)
         return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
 
     Py_ssize_t i, j;
-    for (j = 0; j < self->g_used; j++) {
-        ParticleGroup *g = &self->groups[j];
-        float *g_pos = g->p_pos.data;
-        float *g_vel = g->p_vel.data;
-        float *g_acc = g->p_acc.data;
-
-        for (i = 0; i < g->n_particles; i++) {
-            g_acc[i * 2] += g->gravity.x;
-            g_acc[i * 2 + 1] += g->gravity.y;
-            g_vel[i * 2] += g_acc[i * 2] * dt;
-            g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
-            g_pos[i * 2] += g_vel[i * 2] * dt;
-            g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
-            //            g->p_time.data[i] += dt * g->u_fac.data[i];
-        }
-    }
+    for (j = 0; j < self->g_used; j++)
+        update_group(&self->groups[j], dt);
 
     Py_RETURN_NONE;
 }

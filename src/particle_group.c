@@ -1,4 +1,5 @@
 #include "include/particle_group.h"
+#include "include/simd_common.h"
 
 int
 init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
@@ -169,4 +170,44 @@ dealloc_group(ParticleGroup *g)
 
     PyMem_Free(g->images);
     PyMem_Free(g->n_img_frames);
+}
+
+void
+_update_particles_scalar(ParticleGroup *group, float dt)
+{
+    float *g_pos = group->p_pos.data;
+    float *g_vel = group->p_vel.data;
+    float *g_acc = group->p_acc.data;
+
+    Py_ssize_t i;
+    for (i = 0; i < group->n_particles; i++) {
+        g_acc[i * 2] += group->gravity.x;
+        g_acc[i * 2 + 1] += group->gravity.y;
+        g_vel[i * 2] += g_acc[i * 2] * dt;
+        g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
+        g_pos[i * 2] += g_vel[i * 2] * dt;
+        g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
+        group->p_time.data[i] += dt * group->u_fac.data[i];
+    }
+}
+
+void
+update_group(ParticleGroup *g, float dt)
+{
+#if !defined(__EMSCRIPTEN__)
+    if (_Has_AVX2()) {
+        _update_particles_avx2(g, dt);
+        return;
+    }
+
+#if PG_ENABLE_SSE_NEON
+    if (_HasSSE_NEON()) {
+        _update_particles_sse2(g, dt);
+        return;
+    }
+#endif /* PG_ENABLE_SSE_NEON */
+
+#endif /* __EMSCRIPTEN__ */
+
+    _update_particles_scalar(g, dt);
 }

@@ -166,6 +166,8 @@ summary(
 src_files = [
     'src/module.c',
     'src/particle_group.c',
+    'src/simd_particles_avx2.c',
+    'src/simd_particles_sse2.c',
 ]
 
 py.extension_module(
@@ -173,5 +175,6 @@ py.extension_module(
     src_files,
     dependencies : itzpm_base_deps,
     include_directories : include_dirs,
+    c_args : simd_avx2_flags + simd_sse2_neon_flags,
     install : true,
 )
