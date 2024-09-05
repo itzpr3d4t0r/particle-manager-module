@@ -1,5 +1,6 @@
 #include "include/f_vec.h"
 
+int
 farr_init(f_arr *v, Py_ssize_t capacity)
 {
     v->capacity = capacity;
