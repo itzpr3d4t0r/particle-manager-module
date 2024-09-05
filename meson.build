@@ -51,7 +51,7 @@ if not cc.has_header('Python.h', dependencies : py_dep)
     )
 endif
 
-curr_dir = py.get_install_dir() / itz_pm
+curr_dir = py.get_install_dir()
 
 include_dirs = []
 lib_dirs = []
@@ -166,5 +166,6 @@ py.extension_module(
     itz_pm,
     'src/module.c',
     dependencies : itzpm_base_deps,
+    include_directories : include_dirs,
     install : true,
 )
