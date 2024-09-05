@@ -135,6 +135,11 @@ if host_machine.cpu_family().startswith('x86')
     endif
 endif
 
+# add msvc /GL flag
+if cc.get_argument_syntax() == 'msvc'
+    add_global_arguments('/fp:fast', language : 'c')
+endif
+
 simd_sse2_neon = false
 simd_sse2_neon_flags = []
 if host_machine.cpu_family() == 'arm'
