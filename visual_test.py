@@ -30,8 +30,8 @@ PM.add_group(
 )
 
 particles = [
-    PyParticle(500, 500, random() * 2 - 1, random() * 2 - 1, 0, 0) for _ in
-    range(PARTICLE_NUM)
+    PyParticle(500, 500, random() * 2 - 1, random() * 2 - 1, 0, 0)
+    for _ in range(PARTICLE_NUM)
 ]
 
 screen = pygame.display.set_mode((1000, 1000))
