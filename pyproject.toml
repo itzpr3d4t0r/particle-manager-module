@@ -1,0 +1,13 @@
+[build-system]
+build-backend = 'mesonpy'
+requires = ['meson-python']
+
+[project]
+name = 'itz_particle_manager'
+version = '0.1'
+description = 'A particle manager module from ItzPr3d4t0r'
+readme = 'README.md'
+requires-python = '>=3.8'
+authors = [
+    {name = 'ItzPr3d4t0r'}
+]
