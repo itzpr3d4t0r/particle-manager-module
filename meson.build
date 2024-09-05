@@ -162,9 +162,15 @@ summary(
     section: 'SIMD',
 )
 
+# List of source files
+src_files = [
+    'src/module.c',
+    'src/particle_group.c',
+]
+
 py.extension_module(
     itz_pm,
-    'src/module.c',
+    src_files,
     dependencies : itzpm_base_deps,
     include_directories : include_dirs,
     install : true,
