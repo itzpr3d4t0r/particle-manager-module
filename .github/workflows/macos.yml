@@ -1,0 +1,28 @@
+name: macOS latest
+
+on: [ push, pull_request ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Python:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false  # if a particular matrix build fails, don't skip the rest
+      matrix:
+        python-version: [3.8, 3.9, '3.10', 3.11, 3.12]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          brew install sdl2 pkg-config
+          python -m pip install --upgrade pip
+          python -m pip install wheel
+          python -m pip install pygame-ce
+          python -m pip install .
