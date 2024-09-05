@@ -3,7 +3,7 @@ from random import random
 import pygame
 from itz_particle_manager import ParticleManager, SPAWN_POINT
 
-from pyparticle import PyParticle
+from src_py.pyparticle import PyParticle
 
 pygame.init()
 

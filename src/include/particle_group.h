@@ -26,7 +26,7 @@ typedef struct {
     vec2 gravity;
 } ParticleGroup;
 
-int
+static int
 init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
            Py_ssize_t n_img_sequences)
 {
@@ -77,7 +77,7 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
     return 1;
 }
 
-void
+static void
 setup_particles_general(ParticleGroup *g, const generator *pos_x_g,
                         const generator *pos_y_g, const generator *vel_x_g,
                         const generator *vel_y_g, const generator *acc_x_g,
@@ -102,7 +102,7 @@ setup_particles_general(ParticleGroup *g, const generator *pos_x_g,
     g->max_ix = g->n_particles - 1;
 }
 
-void
+static void
 setup_particles_point(ParticleGroup *g, float x, float y, const generator *vel_x_g,
                       const generator *vel_y_g, const generator *acc_x_g,
                       const generator *acc_y_g, const generator *time_g,
@@ -126,7 +126,7 @@ setup_particles_point(ParticleGroup *g, float x, float y, const generator *vel_x
     g->max_ix = g->n_particles - 1;
 }
 
-PyObject *
+static PyObject *
 pythonify_group(ParticleGroup *g)
 {
     /* creates a python tuple of size 2 containing a list of (img, pos) as first
@@ -177,7 +177,7 @@ pythonify_group(ParticleGroup *g)
     return group;
 }
 
-void
+static void
 dealloc_group(ParticleGroup *g)
 {
     farr_free(&g->p_pos);

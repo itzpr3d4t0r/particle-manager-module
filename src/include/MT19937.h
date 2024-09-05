@@ -15,7 +15,7 @@ static uint32_t mt[N];   // The array for the state vector
 static int mti = N + 1;  // mti == N+1 means mt[N] is not initialized
 
 // Initialize the generator from a seed
-void
+static void
 init_genrand(uint32_t s)
 {
     mt[0] = s & 0xffffffffU;
@@ -26,7 +26,7 @@ init_genrand(uint32_t s)
 }
 
 // Generate a random number on [0, 0xffffffff]-interval
-uint32_t
+static uint32_t
 genrand_int32(void)
 {
     uint32_t y;
@@ -63,7 +63,7 @@ genrand_int32(void)
     return y;
 }
 
-void
+static void
 genrand_int32_array(uint32_t *arr, int n)
 {
     uint32_t y;
@@ -103,13 +103,13 @@ genrand_int32_array(uint32_t *arr, int n)
 }
 
 // Generate a random number on [0,1]-real-interval
-float FORCEINLINE
+static float FORCEINLINE
 rand_f(void)
 {
     return (float)(genrand_int32() * (1.0 / 4294967295.0));  // Dividing by 2^32-1
 }
 
-float FORCEINLINE
+static float FORCEINLINE
 rand_between(float lo, float hi)
 {
     return (float)(lo + (hi - lo) * rand_f());
@@ -121,7 +121,7 @@ typedef struct {
     int randomize;
 } generator;
 
-float FORCEINLINE
+static float FORCEINLINE
 genrand_from(const generator *g)
 {
     return g->randomize ? rand_between(g->min, g->max) : g->min;

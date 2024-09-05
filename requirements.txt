@@ -1,3 +1,3 @@
-itz_particle_manager~=0.1a0
+itz_particle_manager~=0.1
 pygame~=2.6.0
 setuptools~=70.1.1
