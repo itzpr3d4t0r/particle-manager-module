@@ -16,8 +16,8 @@ pm_rand_point_in_circle(PyObject *_null, PyObject *const *args, Py_ssize_t nargs
     const float r_sqr = r * r;
 
     do {
-        r_x = r * (random() * 2 - 1);
-        r_y = r * (random() * 2 - 1);
+        r_x = r * (rand_f() * 2 - 1);
+        r_y = r * (rand_f() * 2 - 1);
     } while (r_x * r_x + r_y * r_y > r_sqr);
 
     return TupleFromDoublePair(x + r_x, y + r_y);

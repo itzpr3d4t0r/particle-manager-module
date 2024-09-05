@@ -104,7 +104,7 @@ genrand_int32_array(uint32_t *arr, int n)
 
 // Generate a random number on [0,1]-real-interval
 float FORCEINLINE
-random(void)
+rand_f(void)
 {
     return (float)(genrand_int32() * (1.0 / 4294967295.0));  // Dividing by 2^32-1
 }
@@ -112,7 +112,7 @@ random(void)
 float FORCEINLINE
 rand_between(float lo, float hi)
 {
-    return (float)(lo + (hi - lo) * random());
+    return (float)(lo + (hi - lo) * rand_f());
 }
 
 typedef struct {
