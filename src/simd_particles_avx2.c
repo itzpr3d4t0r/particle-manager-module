@@ -73,4 +73,4 @@ _update_particles_avx2(ParticleGroup *group, float dt)
     BAD_AVX2_FUNCTION_CALL
 }
 #endif /* defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
-          !defined(SDL_DISABLE_IMMINTRIN_H) */
+          \ !defined(SDL_DISABLE_IMMINTRIN_H) */

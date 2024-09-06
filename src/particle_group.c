@@ -1,5 +1,6 @@
 #include "include/particle_group.h"
 #include "include/simd_common.h"
+#include "include/pygame.h"
 
 int
 init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
