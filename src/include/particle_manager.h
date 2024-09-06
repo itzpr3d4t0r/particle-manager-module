@@ -2,7 +2,6 @@
 
 #include "particle_group.h"
 #include "MT19937.h"
-#include "pygame.h"
 #include <math.h>
 
 #define PM_BASE_GROUP_SIZE 10

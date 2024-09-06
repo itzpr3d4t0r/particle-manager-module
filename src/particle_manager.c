@@ -1,4 +1,5 @@
 #include "include/particle_manager.h"
+#include "include/pygame.h"
 
 PyObject *
 pm_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
