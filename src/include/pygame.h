@@ -48,7 +48,7 @@
 
 #define PYGAMEAPI_GET_SLOT(module, index) _PGSLOTS_##module[(index)]
 
-void **_PGSLOTS_surface = NULL;
+static void **_PGSLOTS_surface = NULL;
 
 struct pgSubSurface_Data;
 
