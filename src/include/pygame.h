@@ -1,8 +1,7 @@
-#ifndef _PYGAME_H
-#define _PYGAME_H
+#pragma once
 
 #include "base.h"
-#include "SDL_surface.h"
+#include "SDL.h"
 
 #define MODINIT_DEFINE(mod_name) PyMODINIT_FUNC PyInit_##mod_name(void)
 
@@ -90,5 +89,3 @@ typedef struct {
             return RAISE(PyExc_RuntimeError, "Surface is not initialized"); \
         }                                                                   \
     }
-
-#endif /* ~_PYGAME_H */
