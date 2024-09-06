@@ -22,12 +22,12 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
                 "Failed to allocate enough memory for group")
     INIT_MEMORY(g->n_img_frames, Py_ssize_t, n_img_sequences, 0, {},
                 "Failed to allocate enough memory for group")
-    INIT_MEMORY(g->p_img_ix, char, n_particles, 0, {},
+    INIT_MEMORY(g->p_img_ix, int, n_particles, 0, {},
                 "Failed to allocate enough memory for group")
 
     memset(g->images, 0, sizeof(PyObject **) * n_img_sequences);
     memset(g->n_img_frames, 0, sizeof(Py_ssize_t) * n_img_sequences);
-    memset(g->p_img_ix, 0, sizeof(char) * n_particles);
+    memset(g->p_img_ix, 0, sizeof(int) * n_particles);
 
     /* initialize the image sequences */
     Py_ssize_t i, j;

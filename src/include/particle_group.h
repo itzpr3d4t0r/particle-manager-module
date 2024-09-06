@@ -6,12 +6,12 @@
 
 typedef struct {
     /* particles data */
-    f_arr p_pos;    /* positions array */
-    f_arr p_vel;    /* velocities array */
-    f_arr p_acc;    /* accelerations array */
-    f_arr p_time;   /* times array*/
-    f_arr u_fac;    /* update speed factor array */
-    char *p_img_ix; /* image index array */
+    f_arr p_pos;   /* positions array */
+    f_arr p_vel;   /* velocities array */
+    f_arr p_acc;   /* accelerations array */
+    f_arr p_time;  /* times array*/
+    f_arr u_fac;   /* update speed factor array */
+    int *p_img_ix; /* image index array */
 
     Py_ssize_t n_particles; /* number of particles */
     Py_ssize_t max_ix;      /* maximum index of an active particle */

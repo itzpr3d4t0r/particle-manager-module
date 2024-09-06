@@ -7,9 +7,6 @@ project(
     ],
 )
 
-# install pkg-config
-pkgconfig = import('pkgconfig')
-
 # This code was copied from the meson.build file of the Pygame project, I do not own this code.
 
 itz_pm = 'itz_particle_manager' # This is the name of the module
