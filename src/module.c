@@ -25,6 +25,32 @@ pm_rand_point_in_circle(PyObject *_null, PyObject *const *args, Py_ssize_t nargs
 
 /* ===================================================================== */
 
+static PyMethodDef PM_methods[] = {
+    {"update", (PyCFunction)pm_update, METH_O, NULL},
+    {"draw", (PyCFunction)pm_draw, METH_O, NULL},
+    {"add_group", (PyCFunction)pm_add_group, METH_FASTCALL, NULL},
+    {NULL, NULL, 0, NULL}};
+
+static PyGetSetDef PM_attributes[] = {
+    {"num_particles", (getter)pm_get_num_particles, NULL, NULL, NULL},
+    {"num_groups", (getter)pm_get_num_groups, NULL, NULL, NULL},
+    {"groups", (getter)pm_get_groups, NULL, NULL, NULL},
+    {NULL, 0, NULL, NULL, NULL}};
+
+static PyTypeObject ParticleManagerType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "particle_manager.ParticleManager",
+    .tp_doc = "Particle Manager",
+    .tp_basicsize = sizeof(ParticleManager),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = (newfunc)pm_new,
+    .tp_str = (reprfunc)pm_str,
+    .tp_repr = (reprfunc)pm_str,
+    .tp_dealloc = (destructor)pm_dealloc,
+    .tp_methods = PM_methods,
+    .tp_getset = PM_attributes,
+};
+
+
 static PyMethodDef _module_methods[] = {
     {"rand_point_in_circle", (PyCFunction)pm_rand_point_in_circle, METH_FASTCALL,
      NULL},
