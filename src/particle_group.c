@@ -82,8 +82,8 @@ setup_particles_general(ParticleGroup *g, const generator *pos_x_g,
         g->p_acc.data[i * 2] = genrand_from(acc_x_g);
         g->p_acc.data[i * 2 + 1] = genrand_from(acc_y_g);
 
-        g->p_time.data[i] = genrand_from(time_g);
-        g->u_fac.data[i] = genrand_from(update_speed_g);
+        g->p_time.data[i] = 0;
+        g->u_fac.data[i] = 1;
     }
 
     g->max_ix = g->n_particles - 1;
@@ -190,6 +190,8 @@ _update_particles_scalar(ParticleGroup *g, float dt)
     float *g_pos = g->p_pos.data;
     float *g_vel = g->p_vel.data;
     float *g_acc = g->p_acc.data;
+    float *g_time = g->p_time.data;
+    float *g_u_fac = g->u_fac.data;
 
     Py_ssize_t i;
     for (i = 0; i < g->n_particles; i++) {
@@ -199,7 +201,7 @@ _update_particles_scalar(ParticleGroup *g, float dt)
         g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
         g_pos[i * 2] += g_vel[i * 2] * dt;
         g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
-        g->p_time.data[i] += dt * g->u_fac.data[i];
+        g_time[i] += dt * g_u_fac[i];
     }
 }
 

@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "ArgumentSelectionDefects"
 #include "include/simd_common.h"
 
 #if PG_ENABLE_ARM_NEON
@@ -32,6 +34,8 @@ _update_particles_sse2(ParticleGroup *group, float dt)
     float *g_pos = group->p_pos.data;
     float *g_vel = group->p_vel.data;
     float *g_acc = group->p_acc.data;
+    float *g_time = group->p_time.data;
+    float *g_u_fac = group->u_fac.data;
 
     Py_ssize_t i;
     const Py_ssize_t n_iters_4 = group->n_particles / 4;
@@ -45,23 +49,48 @@ _update_particles_sse2(ParticleGroup *group, float dt)
         __m128 vel_v = _mm_loadu_ps(g_vel);
         __m128 pos_v = _mm_loadu_ps(g_pos);
 
+        __m128 acc_v_2 = _mm_loadu_ps(g_acc + 4);
+        __m128 vel_v_2 = _mm_loadu_ps(g_vel + 4);
+        __m128 pos_v_2 = _mm_loadu_ps(g_pos + 4);
+
+        __m128 time_v = _mm_loadu_ps(g_time);
+        __m128 u_fac_v = _mm_loadu_ps(g_u_fac);
+
         acc_v = _mm_add_ps(acc_v, grav_v);
+        acc_v_2 = _mm_add_ps(acc_v_2, grav_v);
         vel_v = _mm_add_ps(vel_v, _mm_mul_ps(acc_v, dt_v));
+        vel_v_2 = _mm_add_ps(vel_v_2, _mm_mul_ps(acc_v_2, dt_v));
         pos_v = _mm_add_ps(pos_v, _mm_mul_ps(vel_v, dt_v));
+        pos_v_2 = _mm_add_ps(pos_v_2, _mm_mul_ps(vel_v_2, dt_v));
+
+        time_v = _mm_add_ps(time_v, _mm_mul_ps(u_fac_v, dt_v));
 
         _mm_storeu_ps(g_acc, acc_v);
         _mm_storeu_ps(g_vel, vel_v);
         _mm_storeu_ps(g_pos, pos_v);
 
-        g_pos += 4;
-        g_vel += 4;
-        g_acc += 4;
+        _mm_storeu_ps(g_acc + 4, acc_v_2);
+        _mm_storeu_ps(g_vel + 4, vel_v_2);
+        _mm_storeu_ps(g_pos + 4, pos_v_2);
+
+        _mm_storeu_ps(g_time, time_v);
+
+        g_pos += 8;
+        g_vel += 8;
+        g_acc += 8;
+        g_time += 4;
+        g_u_fac += 4;
     }
 
     for (i = 0; i < n_excess; i++) {
-        g_acc[i] += group->gravity.y;
-        g_vel[i] += g_acc[i] * dt;
-        g_pos[i] += g_vel[i] * dt;
+        *g_acc++ += group->gravity.x;
+        *g_vel++ += *g_acc * dt;
+        *g_pos++ += *g_vel * dt;
+        *g_acc++ += group->gravity.y;
+        *g_vel++ += *g_acc * dt;
+        *g_pos++ += *g_vel * dt;
+
+        g_time[i] += g_u_fac[i] * dt;
     }
 }
 #else
@@ -71,3 +100,4 @@ _update_particles_sse2(ParticleGroup *group, float dt)
     BAD_SSE2_FUNCTION_CALL
 }
 #endif /* __SSE2__ || PG_ENABLE_ARM_NEON */
+#pragma clang diagnostic pop
