@@ -3,7 +3,7 @@ from pygame import Surface
 
 class PyParticle:
     img_sequences = [
-        [Surface((s, s)) for s in range(10, 20, 1)],
+        [Surface((s, s)) for s in range(2, 20, 1)],
         [Surface((s, s)) for s in range(1, 5, 1)],
         [Surface((s, s)) for s in range(50, 101, 10)],
     ]

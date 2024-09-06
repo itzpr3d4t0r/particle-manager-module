@@ -8,7 +8,7 @@ from src_py.pyparticle import PyParticle
 pygame.init()
 
 imgs = [
-    [pygame.Surface((s, s)) for s in range(10, 20, 1)],
+    [pygame.Surface((s, s)) for s in range(2, 20, 1)],
     [pygame.Surface((s, s)) for s in range(1, 5, 1)],
     [pygame.Surface((s, s)) for s in range(50, 101, 10)],
 ]
@@ -40,6 +40,8 @@ use_pm = True
 
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 20, True)
+pm_mode_txt = font.render("PM mode (press 1 to change mode)", True, "green")
+list_mode_txt = font.render("List mode  (press 1 to change mode)", True, "green")
 
 while True:
     dt = clock.tick_busy_loop(1000) * 60 / 1000
@@ -48,12 +50,13 @@ while True:
 
     if use_pm:
         PM.update(dt)
-        for seq, flag in PM.groups:
-            screen.fblits(seq, flag)
+        PM.draw(screen)
+        screen.blit(pm_mode_txt, (0, 55))
     else:
         for p in particles:
             p.update(dt)
         screen.fblits([(p.images[0], (p.x, p.y)) for p in particles])
+        screen.blit(list_mode_txt, (0, 55))
 
     screen.blit(font.render(f"fps: {int(clock.get_fps())}", True, "red"))
     screen.blit(font.render(f"particles: {PM.num_particles}", True, "red"), (0, 30))

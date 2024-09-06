@@ -2,6 +2,7 @@
 
 #include "particle_group.h"
 #include "MT19937.h"
+#include "pygame.h"
 #include <math.h>
 
 #define PM_BASE_GROUP_SIZE 10
@@ -121,8 +122,7 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 
     PyObject **list_items = PySequence_Fast_ITEMS(args[2]);
     if (!init_group(group, n_particles, list_items, imgs_list_size))
-        return IRAISE(PyExc_MemoryError,
-                      "Failed to allocate enough memory for group");
+        return 0;
 
     setup_particles_point(group, x, y, &vel_x_g, &vel_y_g, &acc_x_g, &acc_y_g,
                           &time_g, &uspeed_g);
@@ -208,6 +208,38 @@ pm_update(ParticleManager *self, PyObject *arg)
 }
 
 static PyObject *
+pm_draw(ParticleManager *self, PyObject *arg)
+{
+    if (!pgSurface_Check(arg))
+        return RAISE(PyExc_TypeError, "Invalid surface object");
+
+    pgSurfaceObject *src;
+    pgSurfaceObject *dest = (pgSurfaceObject *)arg;
+    SURF_INIT_CHECK((&dest->surf));
+
+    Py_ssize_t i, j;
+    for (i = 0; i < self->g_used; i++) {
+        ParticleGroup *g = &self->groups[i];
+        for (j = 0; j < g->n_particles; j++) {
+            SDL_Rect rect = {(int)g->p_pos.data[j * 2],
+                             (int)g->p_pos.data[j * 2 + 1], 0, 0};
+
+            const SDL_Surface *img = pgSurface_AsSurface(g->images[0][0]);
+            rect.w = img->w;
+            rect.h = img->h;
+
+            src = (pgSurfaceObject *)g->images[0][0];
+            SURF_INIT_CHECK((&src->surf));
+
+            if (pgSurface_Blit(dest, src, &rect, NULL, g->blend_flag))
+                return NULL;
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 pm_str(ParticleManager *self)
 {
     Py_ssize_t n = 0, i;
@@ -257,6 +289,7 @@ pm_get_groups(ParticleManager *self, void *closure)
 
 static PyMethodDef PM_methods[] = {
     {"update", (PyCFunction)pm_update, METH_O, NULL},
+    {"draw", (PyCFunction)pm_draw, METH_O, NULL},
     {"add_group", (PyCFunction)pm_add_group, METH_FASTCALL, NULL},
     {NULL, NULL, 0, NULL}};
 

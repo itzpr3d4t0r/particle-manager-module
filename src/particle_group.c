@@ -12,12 +12,17 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
     if (!farr_init(&g->p_pos, 2 * n_particles) ||
         !farr_init(&g->p_vel, 2 * n_particles) ||
         !farr_init(&g->p_acc, 2 * n_particles) ||
-        !farr_init(&g->p_time, n_particles) || !farr_init(&g->u_fac, n_particles))
-        return 0;
+        !farr_init(&g->p_time, n_particles) || !farr_init(&g->u_fac, n_particles)) {
+        return IRAISE(PyExc_MemoryError,
+                      "Failed to allocate enough memory for group");
+    }
 
-    INIT_MEMORY(g->images, PyObject **, n_img_sequences, 0, {})
-    INIT_MEMORY(g->n_img_frames, Py_ssize_t, n_img_sequences, 0, {})
-    INIT_MEMORY(g->p_img_ix, char, n_particles, 0, {})
+    INIT_MEMORY(g->images, PyObject **, n_img_sequences, 0, {},
+                "Failed to allocate enough memory for group")
+    INIT_MEMORY(g->n_img_frames, Py_ssize_t, n_img_sequences, 0, {},
+                "Failed to allocate enough memory for group")
+    INIT_MEMORY(g->p_img_ix, char, n_particles, 0, {},
+                "Failed to allocate enough memory for group")
 
     memset(g->images, 0, sizeof(PyObject **) * n_img_sequences);
     memset(g->n_img_frames, 0, sizeof(Py_ssize_t) * n_img_sequences);
@@ -28,23 +33,29 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
     for (i = 0; i < n_img_sequences; i++) {
         PyObject *seq = images[i];
         if (!PyList_Check(seq)) {
-            PyErr_SetString(PyExc_TypeError, "images must be a list of sequences");
+            PyErr_SetString(PyExc_TypeError, "images must be a list of animations");
             return 0;
         }
 
         Py_ssize_t n_frames = PySequence_Fast_GET_SIZE(seq);
         g->images[i] = PyMem_New(PyObject *, n_frames);
         if (!g->images[i])
-            return 0;
+            return IRAISE(PyExc_MemoryError,
+                          "Failed to allocate enough memory for group");
 
         PyObject **seq_items = PySequence_Fast_ITEMS(seq);
         for (j = 0; j < n_frames; j++) {
             PyObject *img = seq_items[j];
+            if (!pgSurface_Check(img)) {
+                PyErr_SetString(PyExc_TypeError,
+                                "images must be pygame.Surface objects");
+                return 0;
+            }
+
             Py_INCREF(img);
             g->images[i][j] = img;
+            g->n_img_frames[i]++;
         }
-
-        g->n_img_frames[i] = n_frames;
     }
 
     g->gravity = (vec2){0.0f, 0.0f};

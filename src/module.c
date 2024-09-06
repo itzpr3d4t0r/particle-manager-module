@@ -41,6 +41,8 @@ static struct PyModuleDef PM_module = {
 PyMODINIT_FUNC
 PyInit_itz_particle_manager(void)
 {
+    import_pygame_surface();
+
     if (PyType_Ready(&ParticleManagerType) < 0)
         return NULL;
 
