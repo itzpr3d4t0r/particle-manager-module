@@ -218,12 +218,14 @@ pm_draw(ParticleManager *self, PyObject *arg)
     SURF_INIT_CHECK((&dest->surf));
 
     Py_ssize_t i, j;
+
     for (i = 0; i < self->g_used; i++) {
         ParticleGroup *g = &self->groups[i];
         for (j = 0; j < g->n_particles; j++) {
             const Py_ssize_t img_ix = (Py_ssize_t)g->p_time.data[j];
-            if (img_ix < 0 || img_ix > g->n_img_frames[0] - 1)
+            if (img_ix > g->n_img_frames[0] - 1) {
                 continue;
+            }
 
             const SDL_Surface *img = pgSurface_AsSurface(g->images[g->p_img_ix[j]][img_ix]);
 

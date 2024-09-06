@@ -8,7 +8,7 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
 {
     g->n_particles = n_particles;
     g->n_img_sequences = n_img_sequences;
-    g->max_ix = -1;
+    g->max_ix = n_particles - 1;
 
     if (!farr_init(&g->p_pos, 2 * n_particles) ||
         !farr_init(&g->p_vel, 2 * n_particles) ||

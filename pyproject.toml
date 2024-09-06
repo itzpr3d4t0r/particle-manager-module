@@ -1,13 +1,22 @@
-[build-system]
-build-backend = 'mesonpy'
-requires = ['meson-python']
-
 [project]
 name = 'itz_particle_manager'
 version = '0.1'
 description = 'A particle manager module from ItzPr3d4t0r'
 readme = 'README.md'
 requires-python = '>=3.8'
+license = {file = 'LICENSE'}
 authors = [
     {name = 'ItzPr3d4t0r'}
 ]
+
+[build-system]
+requires = [
+    'meson-python',
+    'meson<=1.5.0',
+    'ninja<=1.11.1.1',
+]
+build-backend = 'mesonpy'
+
+[tool.meson-python.args]
+install = ['--tags=runtime,python-runtime,pg-tag']
+
