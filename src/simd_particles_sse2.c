@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ArgumentSelectionDefects"
 #include "include/simd_common.h"
 
 #if PG_ENABLE_ARM_NEON
@@ -100,4 +98,3 @@ _update_particles_sse2(ParticleGroup *group, float dt)
     BAD_SSE2_FUNCTION_CALL
 }
 #endif /* __SSE2__ || PG_ENABLE_ARM_NEON */
-#pragma clang diagnostic pop

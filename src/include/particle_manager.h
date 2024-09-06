@@ -227,7 +227,8 @@ pm_draw(ParticleManager *self, PyObject *arg)
                 continue;
             }
 
-            const SDL_Surface *img = pgSurface_AsSurface(g->images[g->p_img_ix[j]][img_ix]);
+            const SDL_Surface *img =
+                pgSurface_AsSurface((g->images[g->p_img_ix[j]][img_ix]));
 
             SDL_Rect rect = {(int)g->p_pos.data[j * 2],
                              (int)g->p_pos.data[j * 2 + 1], img->w, img->h};
