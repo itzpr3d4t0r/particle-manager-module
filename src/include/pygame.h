@@ -1,11 +1,8 @@
 #pragma once
 
-#include "base.h"
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
 #include "SDL.h"
-
-#define MODINIT_DEFINE(mod_name) PyMODINIT_FUNC PyInit_##mod_name(void)
-
-#define RELATIVE_MODULE(m) ("." m)
 
 #define MODPREFIX ""
 #define IMPPREFIX "pygame."
@@ -20,12 +17,6 @@
 
 #define PYGAMEAPI_LOCAL_ENTRY "_PYGAME_C_API"
 #define PG_CAPSULE_NAME(m) (IMPPREFIX m "." PYGAMEAPI_LOCAL_ENTRY)
-#define encapsulate_api(ptr, module) \
-    PyCapsule_New(ptr, PG_CAPSULE_NAME(module), NULL)
-
-// this is not meant to be used in prod
-// so we can directly include the base source
-#define import_pygame_base()
 
 #define _LOAD_SLOTS_FROM_PYGAME(module)                                       \
     {                                                                         \
@@ -47,7 +38,7 @@
 
 #define PYGAMEAPI_GET_SLOT(module, index) _PGSLOTS_##module[(index)]
 
-void **_PGSLOTS_surface = NULL;
+void **_PGSLOTS_surface;
 
 struct pgSubSurface_Data;
 
@@ -83,9 +74,8 @@ typedef struct {
 #define pgSurface_NewNoOwn(surface) pgSurface_New2((surface), 0)
 #define pgSurface_AsSurface(x) (((pgSurfaceObject *)(x))->surf)
 
-#define SURF_INIT_CHECK(surf)                                               \
-    {                                                                       \
-        if (!surf) {                                                        \
-            return RAISE(PyExc_RuntimeError, "Surface is not initialized"); \
-        }                                                                   \
+#define SURF_INIT_CHECK(surf)                                              \
+    if (!surf) {                                                           \
+        PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized"); \
+        return NULL;                                                       \
     }
