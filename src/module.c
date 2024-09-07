@@ -1,4 +1,7 @@
 #include "include/particle_manager.h"
+#include "include/pygame.h"
+
+void **_PGSLOTS_surface;
 
 static PyObject *
 pm_rand_point_in_circle(PyObject *_null, PyObject *const *args, Py_ssize_t nargs)

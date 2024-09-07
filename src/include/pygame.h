@@ -38,10 +38,7 @@
 
 #define PYGAMEAPI_GET_SLOT(module, index) _PGSLOTS_##module[(index)]
 
-#ifndef PYGAMEAPI_ENABLE_C_API
-#define PYGAMEAPI_ENABLE_C_API
-void **_PGSLOTS_surface;
-#endif
+extern void **_PGSLOTS_surface;
 
 struct pgSubSurface_Data;
 
