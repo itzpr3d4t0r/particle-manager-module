@@ -3,6 +3,7 @@
 #include "base.h"
 #include "f_vec.h"
 #include "MT19937.h"
+#include "pygame.h"
 
 typedef struct {
     /* particles data */
@@ -14,7 +15,6 @@ typedef struct {
     int *p_img_ix; /* image index array */
 
     Py_ssize_t n_particles; /* number of particles */
-    Py_ssize_t max_ix;      /* maximum index of an active particle */
 
     /* images data */
     PyObject ***images;       /* array of image sequences */

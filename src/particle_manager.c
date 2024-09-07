@@ -181,9 +181,18 @@ pm_update(ParticleManager *self, PyObject *arg)
     if (!FloatFromObj(arg, &dt))
         return RAISE(PyExc_TypeError, "Invalid dt parameter, must be nmumeric");
 
-    Py_ssize_t i;
-    for (i = 0; i < self->g_used; i++)
-        update_group(&self->groups[i], dt);
+    Py_ssize_t i = 0;
+    while (i < self->g_used) {
+        ParticleGroup *g = &self->groups[i];
+        update_group(g, dt);
+        if (g->n_particles == 0) {
+            dealloc_group(g);
+            memmove(g, g + 1, sizeof(ParticleGroup) * (self->g_used - i - 1));
+            self->g_used--;
+            continue;
+        }
+        i++;
+    }
 
     Py_RETURN_NONE;
 }

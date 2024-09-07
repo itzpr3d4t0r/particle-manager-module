@@ -20,6 +20,7 @@ for seq in imgs:
         img.fill(-1)
 
 PARTICLE_NUM = 30000
+PARTICLE_NUM_ON_CLICK = 1000
 
 PM = ParticleManager()
 PM.add_group(
@@ -59,19 +60,31 @@ pm_mode_txt = font.render("PM mode (press 1 to change mode)", True, "green")
 list_mode_txt = font.render("List mode  (press 1 to change mode)", True, "green")
 click_to_spawn = font.render("Click any mouse button to spawn particles", True, "white")
 
+t = 0
+fps_text = font.render("fps: 0", True, "red")
+
 while True:
-    dt = clock.tick_busy_loop(1000) * 60 / 1000
+    dt = clock.tick_busy_loop(10000) * 60 / 1000
 
     screen.fill(0)
 
     if use_pm:
         PM.update(dt)
         PM.draw(screen)
+        screen.blit(
+            font.render(f"num groups: {PM.num_groups}", True, "red"),
+            (180, 30),
+        )
     else:
         particles = [p for p in particles if p.update(dt)]
         screen.fblits([(p.images[int(p.time)], (p.x, p.y)) for p in particles])
 
-    screen.blit(font.render(f"fps: {int(clock.get_fps())}", True, "red"))
+    t += dt
+    if t > 5:
+        t = 0
+        fps_text = font.render(f"fps: {int(clock.get_fps())}", True, "red")
+
+    screen.blit(fps_text)
     screen.blit(
         font.render(
             f"particles: {PM.num_particles if use_pm else len(particles)}", True, "red"
@@ -95,7 +108,7 @@ while True:
                 PM.add_group(
                     1,
                     SPAWN_POINT,
-                    100,
+                    PARTICLE_NUM_ON_CLICK,
                     pygame.mouse.get_pos(),
                     imgs,
                     (-1, 1, True),  # x velocity info
@@ -116,6 +129,6 @@ while True:
                             0,
                             update_speed=rand_between(0.025, 0.8),
                         )
-                        for _ in range(100)
+                        for _ in range(PARTICLE_NUM_ON_CLICK)
                     ]
                 )

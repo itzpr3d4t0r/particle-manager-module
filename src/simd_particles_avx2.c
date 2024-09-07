@@ -66,11 +66,12 @@ _update_particles_avx2(ParticleGroup *group, float dt)
         time_v = _mm256_add_ps(time_v, _mm256_mul_ps(u_fac_v, dt_v));
 
         _mm256_storeu_ps(g_acc, acc_v);
-        _mm256_storeu_ps(g_vel, vel_v);
-        _mm256_storeu_ps(g_pos, pos_v);
-
         _mm256_storeu_ps(g_acc + 8, acc_v_2);
+
+        _mm256_storeu_ps(g_vel, vel_v);
         _mm256_storeu_ps(g_vel + 8, vel_v_2);
+
+        _mm256_storeu_ps(g_pos, pos_v);
         _mm256_storeu_ps(g_pos + 8, pos_v_2);
 
         _mm256_storeu_ps(g_time, time_v);
@@ -92,6 +93,34 @@ _update_particles_avx2(ParticleGroup *group, float dt)
         *g_pos++ += *g_vel * dt;
 
         g_time[i] += g_u_fac[i] * dt;
+    }
+
+    g_pos = group->p_pos.data;
+    g_vel = group->p_vel.data;
+    g_acc = group->p_acc.data;
+    g_time = group->p_time.data;
+    g_u_fac = group->u_fac.data;
+
+    i = 0;
+    while (i < group->n_particles) {
+        if ((Py_ssize_t)g_time[i] > group->n_img_frames[0] - 1) {
+            if (i != group->n_particles - 1) {
+                g_pos[i * 2] = g_pos[(group->n_particles - 1) * 2];
+                g_pos[i * 2 + 1] = g_pos[(group->n_particles - 1) * 2 + 1];
+
+                g_vel[i * 2] = g_vel[(group->n_particles - 1) * 2];
+                g_vel[i * 2 + 1] = g_vel[(group->n_particles - 1) * 2 + 1];
+
+                g_acc[i * 2] = g_acc[(group->n_particles - 1) * 2];
+                g_acc[i * 2 + 1] = g_acc[(group->n_particles - 1) * 2 + 1];
+
+                g_time[i] = g_time[group->n_particles - 1];
+                g_u_fac[i] = g_u_fac[group->n_particles - 1];
+            }
+            group->n_particles--;
+        }
+        else
+            i++;
     }
 }
 #else

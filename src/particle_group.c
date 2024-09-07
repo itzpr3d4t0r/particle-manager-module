@@ -1,6 +1,5 @@
 #include "include/particle_group.h"
 #include "include/simd_common.h"
-#include "include/pygame.h"
 
 int
 init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
@@ -8,7 +7,6 @@ init_group(ParticleGroup *g, Py_ssize_t n_particles, PyObject **images,
 {
     g->n_particles = n_particles;
     g->n_img_sequences = n_img_sequences;
-    g->max_ix = n_particles - 1;
 
     if (!farr_init(&g->p_pos, 2 * n_particles) ||
         !farr_init(&g->p_vel, 2 * n_particles) ||
@@ -85,8 +83,6 @@ setup_particles_general(ParticleGroup *g, const generator *pos_x_g,
         g->p_time.data[i] = 0;
         g->u_fac.data[i] = 1;
     }
-
-    g->max_ix = g->n_particles - 1;
 }
 
 void
@@ -109,8 +105,6 @@ setup_particles_point(ParticleGroup *g, float x, float y, const generator *vel_x
         g->p_time.data[i] = genrand_from(time_g);
         g->u_fac.data[i] = genrand_from(update_speed_g);
     }
-
-    g->max_ix = g->n_particles - 1;
 }
 
 PyObject *
@@ -193,15 +187,37 @@ _update_particles_scalar(ParticleGroup *g, float dt)
     float *g_time = g->p_time.data;
     float *g_u_fac = g->u_fac.data;
 
-    Py_ssize_t i;
-    for (i = 0; i < g->n_particles; i++) {
+    Py_ssize_t i = 0;
+    while (i < g->n_particles) {
         g_acc[i * 2] += g->gravity.x;
         g_acc[i * 2 + 1] += g->gravity.y;
+
         g_vel[i * 2] += g_acc[i * 2] * dt;
         g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
+
         g_pos[i * 2] += g_vel[i * 2] * dt;
         g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
+
         g_time[i] += dt * g_u_fac[i];
+
+        // Check if the particle should be deleted
+        const Py_ssize_t img_ix = (Py_ssize_t)g_time[i];
+        if (img_ix > g->n_img_frames[0] - 1) {
+            // Swap with the last active particle if it's not the last one
+            if (i != g->n_particles - 1) {
+                g_pos[i * 2] = g_pos[(g->n_particles - 1) * 2];
+                g_pos[i * 2 + 1] = g_pos[(g->n_particles - 1) * 2 + 1];
+                g_vel[i * 2] = g_vel[(g->n_particles - 1) * 2];
+                g_vel[i * 2 + 1] = g_vel[(g->n_particles - 1) * 2 + 1];
+                g_acc[i * 2] = g_acc[(g->n_particles - 1) * 2];
+                g_acc[i * 2 + 1] = g_acc[(g->n_particles - 1) * 2 + 1];
+                g_time[i] = g_time[g->n_particles - 1];
+                g_u_fac[i] = g_u_fac[g->n_particles - 1];
+            }
+            g->n_particles--;
+        }
+        else
+            i++;
     }
 }
 
@@ -209,13 +225,13 @@ void
 update_group(ParticleGroup *g, float dt)
 {
 #if !defined(__EMSCRIPTEN__)
-    if (_Has_AVX2()) {
+    if (_Has_AVX2() && g->n_particles >= 8) {
         _update_particles_avx2(g, dt);
         return;
     }
 
 #if PG_ENABLE_SSE_NEON
-    if (_HasSSE_NEON()) {
+    if (_HasSSE_NEON() && g->n_particles >= 4) {
         _update_particles_sse2(g, dt);
         return;
     }
