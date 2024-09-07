@@ -3,7 +3,6 @@
 #include "base.h"
 #include "f_vec.h"
 #include "MT19937.h"
-#include "pygame.h"
 
 typedef struct {
     /* particles data */

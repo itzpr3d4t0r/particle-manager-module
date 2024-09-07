@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
-#include "base.h"
 
 #define N 624
 #define M 397
@@ -64,13 +63,13 @@ genrand_int32(void)
 }
 
 // Generate a random number on [0,1]-real-interval
-static float FORCEINLINE
+static float
 rand_f(void)
 {
     return (float)(genrand_int32() * (1.0 / 4294967295.0));  // Dividing by 2^32-1
 }
 
-static float FORCEINLINE
+static float
 rand_between(float lo, float hi)
 {
     return (float)(lo + (hi - lo) * rand_f());
@@ -82,7 +81,7 @@ typedef struct {
     int randomize;
 } generator;
 
-static float FORCEINLINE
+static float
 genrand_from(const generator *g)
 {
     return g->randomize ? rand_between(g->min, g->max) : g->min;

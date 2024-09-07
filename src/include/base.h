@@ -1,8 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
+#include "pygame.h"
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
