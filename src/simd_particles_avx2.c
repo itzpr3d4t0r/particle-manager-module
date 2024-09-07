@@ -85,12 +85,14 @@ _update_particles_avx2(ParticleGroup *group, float dt)
     }
 
     for (i = 0; i < n_excess; i++) {
-        *g_acc++ += group->gravity.x;
-        *g_vel++ += *g_acc * dt;
-        *g_pos++ += *g_vel * dt;
-        *g_acc++ += group->gravity.y;
-        *g_vel++ += *g_acc * dt;
-        *g_pos++ += *g_vel * dt;
+        g_acc[i * 2] += group->gravity.x;
+        g_acc[i * 2 + 1] += group->gravity.y;
+
+        g_vel[i * 2] += g_acc[i * 2] * dt;
+        g_vel[i * 2 + 1] += g_acc[i * 2 + 1] * dt;
+
+        g_pos[i * 2] += g_vel[i * 2] * dt;
+        g_pos[i * 2 + 1] += g_vel[i * 2 + 1] * dt;
 
         g_time[i] += g_u_fac[i] * dt;
     }
