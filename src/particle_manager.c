@@ -33,6 +33,14 @@ pm_dealloc(ParticleManager *self)
 
 /* =======================| INTERNAL FUNCTIONALITY |======================= */
 
+#ifndef GETARG_CASE
+#define GETARG_CASE(name, ix, gen)                                               \
+    if (!RandRange_FromTupleOrNum(args[ix], &gen.min, &gen.max, &gen.randomize)) \
+        return IRAISE(PyExc_TypeError,                                           \
+                      "Invalid " name                                            \
+                      " settings, must be a float or a tuple of max 2 floats");
+#endif
+
 int
 _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
 {
@@ -62,43 +70,19 @@ _pm_g_add_point(ParticleGroup *group, PyObject *const *args, Py_ssize_t nargs)
         case 10:
             if (!TwoFloatsFromObj(args[9], &gravity.x, &gravity.y))
                 return IRAISE(PyExc_TypeError,
-                              "Invalid gravity. Must be a tuple of 2 floats");
+                              "Invalid gravity, must be a tuple of 2 floats");
         case 9:
-            if (!TwoFloatsAndBoolFromTuple(args[8], &time_g.min, &time_g.max,
-                                           &time_g.randomize))
-                return IRAISE(PyExc_TypeError,
-                              "Invalid time settings, must be a tuple of 2 floats "
-                              "and a bool");
+            GETARG_CASE("time", 8, time_g);
         case 8:
-            if (!TwoFloatsAndBoolFromTuple(args[7], &uspeed_g.min, &uspeed_g.max,
-                                           &uspeed_g.randomize))
-                return IRAISE(PyExc_TypeError,
-                              "Invalid update_speed settings, must be a tuple of 2 "
-                              "floats and a bool");
+            GETARG_CASE("update_speed", 7, uspeed_g);
         case 7:
-            if (!TwoFloatsAndBoolFromTuple(args[6], &acc_y_g.min, &acc_y_g.max,
-                                           &acc_y_g.randomize))
-                return IRAISE(PyExc_TypeError,
-                              "Invalid acc_y settings, must be a tuple of 2 floats "
-                              "and a bool");
+            GETARG_CASE("acc_y", 6, acc_y_g);
         case 6:
-            if (!TwoFloatsAndBoolFromTuple(args[5], &acc_x_g.min, &acc_x_g.max,
-                                           &acc_x_g.randomize))
-                return IRAISE(PyExc_TypeError,
-                              "Invalid acc_x settings, must be a tuple of 2 floats "
-                              "and a bool");
+            GETARG_CASE("acc_x", 5, acc_x_g);
         case 5:
-            if (!TwoFloatsAndBoolFromTuple(args[4], &vel_y_g.min, &vel_y_g.max,
-                                           &vel_y_g.randomize))
-                return IRAISE(
-                    PyExc_TypeError,
-                    "Invalid vy settings, must be a tuple of 2 floats and a bool");
+            GETARG_CASE("vel_y", 4, vel_y_g);
         case 4:
-            if (!TwoFloatsAndBoolFromTuple(args[3], &vel_x_g.min, &vel_x_g.max,
-                                           &vel_x_g.randomize))
-                return IRAISE(
-                    PyExc_TypeError,
-                    "Invalid vx settings, must be a tuple of 2 floats and a bool");
+            GETARG_CASE("vel_x", 3, vel_x_g);
     }
 
     PyObject **list_items = PySequence_Fast_ITEMS(args[2]);

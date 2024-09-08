@@ -518,22 +518,49 @@ TupleToIntPair(PyObject *obj, int *val1, int *val2)
 }
 
 static FORCEINLINE int
-TwoFloatsAndBoolFromTuple(PyObject *tup, float *a, float *b, int *c)
+RandRange_FromTupleOrNum(PyObject *obj, float *min, float *max, int *randomize)
 {
-    Py_ssize_t size;
-    if (!PyTuple_Check(tup) || (size = PyTuple_GET_SIZE(tup)) < 1)
-        return 0;
+    /* Tries to extract either one or two floats from an object.
+     * If the object is a tuple, it must have one or two floats.
+     * If the object is a float, it is used as the minimum value. */
 
-    if (!FloatFromObj(PyTuple_GET_ITEM(tup, 0), a))
-        return 0;
+    if (PyFloat_Check(obj)) {
+        *min = (float)PyFloat_AS_DOUBLE(obj);
+        *randomize = 0;
 
-    if (size >= 2 && !FloatFromObj(PyTuple_GET_ITEM(tup, 1), b))
-        return 0;
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
 
-    if (size == 3 && (*c = PyObject_IsTrue(PyTuple_GET_ITEM(tup, 2))) == -1) {
-        PyErr_Clear();
-        return 0;
+        return 1;
     }
+    else if (PyLong_Check(obj)) {
+        *min = (float)PyLong_AsDouble(obj);
+        *randomize = 0;
+
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+
+        return 1;
+    }
+
+    Py_ssize_t size;
+    if (!PyTuple_Check(obj) || (size = PyTuple_GET_SIZE(obj)) < 1 || size > 2)
+        return 0;
+
+    if (!FloatFromObj(PyTuple_GET_ITEM(obj, 0), min))
+        return 0;
+
+    if (size == 2) {
+        if (!FloatFromObj(PyTuple_GET_ITEM(obj, 1), max))
+            return 0;
+        *randomize = 1;
+    }
+    else
+        *randomize = 0;
 
     return 1;
 }

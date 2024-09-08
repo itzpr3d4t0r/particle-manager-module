@@ -10,13 +10,13 @@ This flag makes ParticleManager.add_group() expect the following args (ordered a
 number,
 pos,
 images,
-vx = (min=0, max=0, random=False),
-vy = (min=0, max=0, random=False),
-accx = (min=0, max=0, random=False),
-accy = (min=0, max=0, random=False),
-update_speed = (min=1, max=1, random=False),
-start_time = (min=1, max=1, random=False),
-gravity
+vx = float or (min=0, max=0),
+vy = float or (min=0, max=0),
+accx = float or (min=0, max=0),
+accy = float or (min=0, max=0),
+update_speed = float or (min=1, max=1),
+start_time = float or (min=1, max=1),
+gravity = (x, y),
 
 """
 SPAWN_POINT: int = 0

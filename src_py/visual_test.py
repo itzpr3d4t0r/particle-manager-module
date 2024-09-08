@@ -13,7 +13,7 @@ def rand_between(low, high):
 
 
 imgs = [
-    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
 ]
 for seq in imgs:
     for i, img in enumerate(seq):
@@ -29,12 +29,11 @@ PM.add_group(
     PARTICLE_NUM,  # number of particles
     (500, 500),  # spawn pos
     imgs,  # image sequence
-    (-1, 1, True),  # x velocity info
-    (-1, 1, True),  # y velocity info
-    (0, 0, False),  # x acceleration info
-    (0, 0, False),  # y acceleration info
-    (0.025, 0.8, True),  # update speed info
-    (0, 0, False),  # start time info
+    (-1, 1),  # x velocity info
+    (-1, 1),  # y velocity info
+    0,  # x acceleration info
+    0,  # y acceleration info
+    (0.025, 0.8),  # update speed info
 )
 
 particles = [
@@ -111,20 +110,19 @@ while True:
                     PARTICLE_NUM_ON_CLICK,
                     pygame.mouse.get_pos(),
                     imgs,
-                    (-1, 1, True),  # x velocity info
-                    (-1, 1, True),  # y velocity info
-                    (0, 0, False),  # x acceleration info
-                    (0, 0, False),  # y acceleration info
-                    (0.025, 0.8, True),  # update speed info
-                    (0, 0, False),  # start time info
+                    (-5, 5),  # x velocity info
+                    (-5, 5),  # y velocity info
+                    0,  # x acceleration info
+                    0,  # y acceleration info
+                    (0.025, 0.8),  # update speed info
                 )
             else:
                 particles.extend(
                     [
                         PyParticle(
                             *pygame.mouse.get_pos(),
-                            rand_between(-1, 1),
-                            rand_between(-1, 1),
+                            rand_between(-5, 5),
+                            rand_between(-5, 5),
                             0,
                             0,
                             update_speed=rand_between(0.025, 0.8),

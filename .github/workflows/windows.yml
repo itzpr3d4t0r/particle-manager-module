@@ -21,4 +21,5 @@ jobs:
           py -${{ matrix.python-version }} -m pip install wheel
           py -${{ matrix.python-version }} -m pip install pygame-ce
           py -${{ matrix.python-version }} -m pip install .
-
+      - name: Run Tests
+        run: py -${{ matrix.python-version }} -m unittest

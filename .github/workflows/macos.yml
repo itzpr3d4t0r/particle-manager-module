@@ -26,3 +26,5 @@ jobs:
           python -m pip install wheel
           python -m pip install pygame-ce
           python -m pip install .
+      - name: Run Tests
+        run: python -m unittest
