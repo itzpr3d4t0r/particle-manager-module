@@ -2,14 +2,26 @@ from pygame import Surface
 
 
 class PyParticle:
-    img_sequences = [
+    imgs_sequences = [
+        [Surface((s, s)) for s in range(5, 1, -1)],
+        [Surface((s, s)) for s in range(5, 1, -1)],
+        [Surface((s, s)) for s in range(5, 1, -1)],
         [Surface((s, s)) for s in range(5, 1, -1)],
     ]
-    for seq in img_sequences:
-        for i, img in enumerate(seq):
-            img.fill(-1)
 
-    def __init__(self, x, y, vx, vy, accx, accy, grav_x=0, grav_y=0, update_speed=1):
+    colors = [
+        "white",
+        "red",
+        "green",
+        "blue",
+    ]
+    for seq, color in zip(imgs_sequences, colors):
+        for i, img in enumerate(seq):
+            img.fill(color)
+
+    def __init__(
+        self, x, y, vx, vy, accx, accy, grav_x=0, grav_y=0, update_speed=1, img_idx=0
+    ):
         self.x = x
         self.y = y
         self.vx = vx
@@ -20,7 +32,7 @@ class PyParticle:
         self.grav_y = grav_y
         self.time = 0
         self.update_speed = update_speed
-        self.images = self.img_sequences[0]
+        self.images = self.imgs_sequences[img_idx]
 
     def update(self, dt):
         self.acc_x += self.grav_x

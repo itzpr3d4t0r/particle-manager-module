@@ -14,40 +14,29 @@ def rand_between(low, high):
 
 imgs = [
     [pygame.Surface((s, s)) for s in range(5, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
 ]
-for seq in imgs:
+
+for seq, color in zip(
+    imgs,
+    [
+        "white",
+        "red",
+        "green",
+        "blue",
+    ],
+):
     for i, img in enumerate(seq):
-        img.fill(-1)
+        img.fill(color)
 
 PARTICLE_NUM = 30000
 PARTICLE_NUM_ON_CLICK = 1000
+idx = 0
 
 PM = ParticleManager()
-PM.add_group(
-    1,
-    SPAWN_POINT,
-    PARTICLE_NUM,  # number of particles
-    (500, 500),  # spawn pos
-    imgs,  # image sequence
-    (-1, 1),  # x velocity info
-    (-1, 1),  # y velocity info
-    0,  # x acceleration info
-    0,  # y acceleration info
-    (0.025, 0.8),  # update speed info
-)
-
-particles = [
-    PyParticle(
-        500,
-        500,
-        rand_between(-1, 1),
-        rand_between(-1, 1),
-        0,
-        0,
-        update_speed=rand_between(0.025, 0.8),
-    )
-    for _ in range(PARTICLE_NUM)
-]
+particles = []
 
 screen = pygame.display.set_mode((1000, 1000))
 
@@ -58,9 +47,10 @@ font = pygame.font.SysFont("Arial", 20, True)
 pm_mode_txt = font.render("PM mode (press 1 to change mode)", True, "green")
 list_mode_txt = font.render("List mode  (press 1 to change mode)", True, "green")
 click_to_spawn = font.render("Click any mouse button to spawn particles", True, "white")
+fps_text = font.render("fps: 0", True, "red")
 
 t = 0
-fps_text = font.render("fps: 0", True, "red")
+timer = 0
 
 while True:
     dt = clock.tick_busy_loop(10000) * 60 / 1000
@@ -76,12 +66,48 @@ while True:
         )
     else:
         particles = [p for p in particles if p.update(dt)]
-        screen.fblits([(p.images[int(p.time)], (p.x, p.y)) for p in particles])
+        screen.fblits(
+            [(p.images[int(p.time)], (p.x, p.y)) for p in particles], pygame.BLEND_ADD
+        )
 
     t += dt
     if t > 5:
         t = 0
         fps_text = font.render(f"fps: {int(clock.get_fps())}", True, "red")
+
+    timer += dt
+    if timer >= 5:
+        timer = 0
+        idx = (idx + 1) % len(imgs)
+        if use_pm:
+            PM.add_group(
+                pygame.BLEND_ADD,
+                SPAWN_POINT,
+                PARTICLE_NUM_ON_CLICK,
+                (500, 500),
+                [imgs[idx]],
+                (-5, 5),  # x velocity info
+                (-5, 5),  # y velocity info
+                0,  # x acceleration info
+                0,  # y acceleration info
+                (0.025, 0.8),  # update speed info
+            )
+        else:
+            particles.extend(
+                [
+                    PyParticle(
+                        500,
+                        500,
+                        rand_between(-5, 5),
+                        rand_between(-5, 5),
+                        0,
+                        0,
+                        update_speed=rand_between(0.025, 0.8),
+                        img_idx=idx,
+                    )
+                    for _ in range(PARTICLE_NUM_ON_CLICK)
+                ]
+            )
 
     screen.blit(fps_text)
     screen.blit(
@@ -105,11 +131,11 @@ while True:
         elif event.type == pygame.MOUSEBUTTONUP:
             if use_pm:
                 PM.add_group(
-                    1,
+                    pygame.BLEND_ADD,
                     SPAWN_POINT,
                     PARTICLE_NUM_ON_CLICK,
                     pygame.mouse.get_pos(),
-                    imgs,
+                    [imgs[idx]],
                     (-5, 5),  # x velocity info
                     (-5, 5),  # y velocity info
                     0,  # x acceleration info
@@ -126,7 +152,9 @@ while True:
                             0,
                             0,
                             update_speed=rand_between(0.025, 0.8),
+                            img_idx=idx,
                         )
                         for _ in range(PARTICLE_NUM_ON_CLICK)
                     ]
                 )
+            idx = (idx + 1) % len(imgs)

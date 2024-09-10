@@ -197,18 +197,13 @@ pm_draw(ParticleManager *self, PyObject *arg)
         ParticleGroup *g = &self->groups[i];
         for (j = 0; j < g->n_particles; j++) {
             const Py_ssize_t img_ix = (Py_ssize_t)g->p_time.data[j];
-            if (img_ix > g->n_img_frames[0] - 1) {
-                continue;
-            }
-
-            const SDL_Surface *img =
-                pgSurface_AsSurface((g->images[g->p_img_ix[j]][img_ix]));
-
-            SDL_Rect rect = {(int)g->p_pos.data[j * 2],
-                             (int)g->p_pos.data[j * 2 + 1], img->w, img->h};
-
             src = (pgSurfaceObject *)(g->images[g->p_img_ix[j]][img_ix]);
             SURF_INIT_CHECK((&src->surf));
+            const SDL_Surface *img = src->surf;
+
+            SDL_Rect rect = {(int)g->p_pos.data[j * 2] - img->w / 2,
+                             (int)g->p_pos.data[j * 2 + 1] - img->h / 2, img->w,
+                             img->h};
 
             if (pgSurface_Blit(dest, src, &rect, NULL, g->blend_flag))
                 return NULL;
