@@ -3,6 +3,7 @@ import stat
 import logging
 
 download_dir = "prebuilt_downloads"
+sdl_checksum = "389a7575afaeccd3586a8105520cbec46b930dcb"
 
 
 def download_sha1_unzip(url, checksum, save_to_directory, unzip=True):
@@ -78,8 +79,8 @@ def get_urls(x86=True, x64=True):
     url_sha1 = []
     url_sha1.append(
         [
-            "https://github.com/libsdl-org/SDL/releases/download/release-2.30.6/SDL2-devel-2.30.6-VC.zip",
-            "038ffed56e04fbc4c6236187472c671596963fdb",
+            "https://github.com/libsdl-org/SDL/releases/download/release-2.30.8/SDL2-devel-2.30.8-VC.zip",
+            sdl_checksum,
         ]
     )
     return url_sha1
@@ -167,8 +168,8 @@ def place_downloaded_prebuilts(temp_dir, move_to_dir, x86=True, x64=True):
         path = os.path.join(move_to_dir, prebuilt_dir)
         print(f"copying into {path}")
         copy(
-            os.path.join(temp_dir, "SDL2-devel-2.30.6-VC/SDL2-2.30.6"),
-            os.path.join(move_to_dir, prebuilt_dir, "SDL2-2.30.6"),
+            os.path.join(temp_dir, "SDL2-devel-2.30.8-VC/SDL2-2.30.8"),
+            os.path.join(move_to_dir, prebuilt_dir, "SDL2-2.30.8"),
         )
 
 

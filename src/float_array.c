@@ -1,7 +1,7 @@
-#include "include/f_vec.h"
+#include "include/float_array.h"
 
 int
-farr_init(f_arr *v, Py_ssize_t capacity)
+farr_init(float_array *v, Py_ssize_t capacity)
 {
     v->capacity = capacity;
     v->data = PyMem_New(float, capacity);
@@ -11,7 +11,7 @@ farr_init(f_arr *v, Py_ssize_t capacity)
 }
 
 void
-farr_free(f_arr *v)
+farr_free(float_array *v)
 {
     PyMem_Free(v->data);
     v->capacity = 0;

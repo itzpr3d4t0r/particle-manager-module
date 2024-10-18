@@ -71,7 +71,7 @@ if plat == 'win' and host_machine.cpu_family().startswith('x86')
         )
     endif
 
-    sdl_ver = '2.30.6'
+    sdl_ver = '2.30.8'
 
     dlls = []
 
@@ -173,8 +173,10 @@ src_files = [
     'src/particle_group.c',
     'src/simd_particles_avx2.c',
     'src/simd_particles_sse2.c',
-    'src/f_vec.c',
+    'src/float_array.c',
     'src/particle_manager.c',
+    'src/emitter.c',
+    'src/particle_effect.c',
 ]
 
 py.extension_module(

@@ -548,19 +548,65 @@ RandRange_FromTupleOrNum(PyObject *obj, float *min, float *max, int *randomize)
     }
 
     Py_ssize_t size;
-    if (!PyTuple_Check(obj) || (size = PyTuple_GET_SIZE(obj)) < 1 || size > 2)
-        return 0;
 
-    if (!FloatFromObj(PyTuple_GET_ITEM(obj, 0), min))
-        return 0;
-
-    if (size == 2) {
-        if (!FloatFromObj(PyTuple_GET_ITEM(obj, 1), max))
+    if (PyTuple_Check(obj)) {
+        size = PyTuple_GET_SIZE(obj);
+        if (size < 1 || size > 2)
             return 0;
-        *randomize = 1;
+
+        if (!FloatFromObj(PyTuple_GET_ITEM(obj, 0), min))
+            return 0;
+
+        if (size == 2) {
+            if (!FloatFromObj(PyTuple_GET_ITEM(obj, 1), max))
+                return 0;
+
+            *randomize = 1;
+        }
+        else
+            *randomize = 0;
     }
-    else
-        *randomize = 0;
+    else if (PyList_Check(obj)) {
+        size = PyList_GET_SIZE(obj);
+        if (size < 1 || size > 2)
+            return 0;
+
+        if (!FloatFromObj(PyList_GET_ITEM(obj, 0), min))
+            return 0;
+
+        if (size == 2) {
+            if (!FloatFromObj(PyList_GET_ITEM(obj, 1), max))
+                return 0;
+            *randomize = 1;
+        }
+        else
+            *randomize = 0;
+    }
+    else if (PySequence_Check(obj)) {
+        size = PySequence_Length(obj);
+        if (size < 1 || size > 2)
+            return 0;
+
+        if (!_FloatFromObjIndex(obj, 0, min))
+            return 0;
+
+        if (size == 2) {
+            if (!_FloatFromObjIndex(obj, 1, max))
+                return 0;
+            *randomize = 1;
+        }
+        else
+            *randomize = 0;
+    }
+    else {
+        return 0;
+    }
+
+    if (*min > *max) {
+        float tmp = *min;
+        *min = *max;
+        *max = tmp;
+    }
 
     return 1;
 }

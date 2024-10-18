@@ -6,10 +6,10 @@
 typedef struct {
     float *data;
     Py_ssize_t capacity;
-} f_arr;
+} float_array;
 
 int
-farr_init(f_arr *v, Py_ssize_t capacity);
+farr_init(float_array *v, Py_ssize_t capacity);
 
 void
-farr_free(f_arr *v);
+farr_free(float_array *v);

@@ -1,16 +1,16 @@
 #pragma once
 
 #include "base.h"
-#include "f_vec.h"
+#include "float_array.h"
 #include "MT19937.h"
 
 typedef struct {
     /* particles data */
-    f_arr p_pos;   /* positions array */
-    f_arr p_vel;   /* velocities array */
-    f_arr p_acc;   /* accelerations array */
-    f_arr p_time;  /* times array*/
-    f_arr u_fac;   /* update speed factor array */
+    float_array p_pos;   /* positions array */
+    float_array p_vel;   /* velocities array */
+    float_array p_acc;   /* accelerations array */
+    float_array p_time;  /* times array*/
+    float_array u_fac;   /* update speed factor array */
     int *p_img_ix; /* image index array */
 
     Py_ssize_t n_particles; /* number of particles */
