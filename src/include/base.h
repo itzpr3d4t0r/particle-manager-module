@@ -84,32 +84,62 @@ IntFromObj(PyObject *obj, int *val)
 }
 
 static FORCEINLINE int
-IntFromObjIndex(PyObject *obj, int _index, int *val)
+_IntFromObjIndex(PyObject *obj, int index, int *val)
 {
     int result = 0;
-    PyObject *item = PySequence_GetItem(obj, _index);
 
+    PyObject *item = PySequence_ITEM(obj, index);
     if (!item) {
         PyErr_Clear();
         return 0;
     }
     result = IntFromObj(item, val);
     Py_DECREF(item);
+
     return result;
 }
 
 static FORCEINLINE int
 TwoIntsFromObj(PyObject *obj, int *val1, int *val2)
 {
-    if (!obj)
-        return 0;
-    if (PyTuple_Check(obj) && PyTuple_Size(obj) == 1) {
-        return TwoIntsFromObj(PyTuple_GET_ITEM(obj, 0), val1, val2);
+    Py_ssize_t length;
+    /*Faster path for tuples and lists*/
+    if (PyTuple_Check(obj) || PyList_Check(obj)) {
+        length = PySequence_Fast_GET_SIZE(obj);
+        PyObject **f_arr = PySequence_Fast_ITEMS(obj);
+        if (length == 2) {
+            if (!IntFromObj(f_arr[0], val1) || !IntFromObj(f_arr[1], val2)) {
+                return 0;
+            }
+        }
+        else if (length == 1) {
+            /* Handle case of ((x, y), ) 'nested sequence' */
+            return TwoIntsFromObj(f_arr[0], val1, val2);
+        }
+        else {
+            return 0;
+        }
     }
-    if (!PySequence_Check(obj) || PySequence_Length(obj) != 2) {
-        return 0;
+    else if (PySequence_Check(obj)) {
+        length = PySequence_Length(obj);
+        if (length == 2) {
+            if (!_IntFromObjIndex(obj, 0, val1) || !_IntFromObjIndex(obj, 1, val2)) {
+                return 0;
+            }
+        }
+        else if (length == 1 && !PyUnicode_Check(obj)) {
+            /* Handle case of ((x, y), ) 'nested sequence' */
+            PyObject *tmp = PySequence_ITEM(obj, 0);
+            int ret = TwoIntsFromObj(tmp, val1, val2);
+            Py_DECREF(tmp);
+            return ret;
+        }
+        else {
+            PyErr_Clear();
+            return 0;
+        }
     }
-    if (!IntFromObjIndex(obj, 0, val1) || !IntFromObjIndex(obj, 1, val2)) {
+    else {
         return 0;
     }
     return 1;
@@ -512,100 +542,6 @@ TupleToIntPair(PyObject *obj, int *val1, int *val2)
     if (!IntFromObj(PyTuple_GET_ITEM(obj, 0), val1) ||
         !IntFromObj(PyTuple_GET_ITEM(obj, 1), val2)) {
         return 0;
-    }
-
-    return 1;
-}
-
-static FORCEINLINE int
-RandRange_FromTupleOrNum(PyObject *obj, float *min, float *max, int *randomize)
-{
-    /* Tries to extract either one or two floats from an object.
-     * If the object is a tuple, it must have one or two floats.
-     * If the object is a float, it is used as the minimum value. */
-
-    if (PyFloat_Check(obj)) {
-        *min = (float)PyFloat_AS_DOUBLE(obj);
-        *randomize = 0;
-
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            return 0;
-        }
-
-        return 1;
-    }
-    else if (PyLong_Check(obj)) {
-        *min = (float)PyLong_AsDouble(obj);
-        *randomize = 0;
-
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            return 0;
-        }
-
-        return 1;
-    }
-
-    Py_ssize_t size;
-
-    if (PyTuple_Check(obj)) {
-        size = PyTuple_GET_SIZE(obj);
-        if (size < 1 || size > 2)
-            return 0;
-
-        if (!FloatFromObj(PyTuple_GET_ITEM(obj, 0), min))
-            return 0;
-
-        if (size == 2) {
-            if (!FloatFromObj(PyTuple_GET_ITEM(obj, 1), max))
-                return 0;
-
-            *randomize = 1;
-        }
-        else
-            *randomize = 0;
-    }
-    else if (PyList_Check(obj)) {
-        size = PyList_GET_SIZE(obj);
-        if (size < 1 || size > 2)
-            return 0;
-
-        if (!FloatFromObj(PyList_GET_ITEM(obj, 0), min))
-            return 0;
-
-        if (size == 2) {
-            if (!FloatFromObj(PyList_GET_ITEM(obj, 1), max))
-                return 0;
-            *randomize = 1;
-        }
-        else
-            *randomize = 0;
-    }
-    else if (PySequence_Check(obj)) {
-        size = PySequence_Length(obj);
-        if (size < 1 || size > 2)
-            return 0;
-
-        if (!_FloatFromObjIndex(obj, 0, min))
-            return 0;
-
-        if (size == 2) {
-            if (!_FloatFromObjIndex(obj, 1, max))
-                return 0;
-            *randomize = 1;
-        }
-        else
-            *randomize = 0;
-    }
-    else {
-        return 0;
-    }
-
-    if (*min > *max) {
-        float tmp = *min;
-        *min = *max;
-        *max = tmp;
     }
 
     return 1;

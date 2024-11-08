@@ -11,20 +11,20 @@ AcceptableImageSequences = Union[
     Sequence[Sequence[pygame.Surface]],  # particles all have a random animation
 ]
 
-SPAWN_POINT: int = 0
+EMIT_POINT: int = 0
 
 class Emitter:
     def __init__(self, emit_type: int, /, **kwargs) -> None: ...
     @overload
     def __init__(
         self,
-        emit_type: int,
+        emit_shape: int,
         emit_number: int = 1,
         looping: bool = False,
         emit_interval: float = 0,
         emit_time: float = 0,
         images: AcceptableImageSequences = None,
-        particle_lifetime: FloatOrRange = 100,
+        particle_lifetime: FloatOrRange = 60,
         speed_x: FloatOrRange = 0,
         speed_y: FloatOrRange = 0,
         acceleration_x: FloatOrRange = 0,
@@ -38,11 +38,8 @@ class ParticleEffect:
     def __init__(self, emitters: List[Emitter]) -> None: ...
 
 class ParticleManager:
-    num_particles: int
-    num_groups: int
-    groups: List[Tuple[List[Tuple[pygame.Surface, Coord]], int]]
-
     def __init__(self) -> None: ...
-    def add_group(self, blend_flag: int, spawn_type: int, *args) -> None: ...
+    def spawn_effect(
+        self, effect: ParticleEffect, position: Sequence[float]
+    ) -> None: ...
     def update(self, dt: float) -> None: ...
-    def draw(self, surface: pygame.Surface) -> None: ...

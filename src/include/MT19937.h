@@ -39,8 +39,8 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON A
 #define UPPER_MASK 0x80000000U  // Most significant w-r bits
 #define LOWER_MASK 0x7fffffffU  // Least significant r bits
 
-static uint32_t mt[N];   // The array for the state vector
-static int mti = N + 1;  // mti == N+1 means mt[N] is not initialized
+extern uint32_t mt[N];   // The array for the state vector
+extern int mti;  // mti == N+1 means mt[N] is not initialized
 
 // Initialize the generator from a seed
 static void
@@ -108,6 +108,7 @@ typedef struct {
     float min;
     float max;
     int randomize;
+    int in_use;
 } generator;
 
 static float

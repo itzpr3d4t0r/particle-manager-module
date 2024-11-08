@@ -3,10 +3,10 @@ from pygame import Surface
 
 class PyParticle:
     imgs_sequences = [
-        [Surface((s, s)) for s in range(5, 1, -1)],
-        [Surface((s, s)) for s in range(5, 1, -1)],
-        [Surface((s, s)) for s in range(5, 1, -1)],
-        [Surface((s, s)) for s in range(5, 1, -1)],
+        [Surface((s, s)) for s in range(10, 1, -1)],
+        # [Surface((s, s)) for s in range(5, 1, -1)],
+        # [Surface((s, s)) for s in range(5, 1, -1)],
+        # [Surface((s, s)) for s in range(5, 1, -1)],
     ]
 
     colors = [
@@ -43,8 +43,8 @@ class PyParticle:
         self.y += self.vy * dt
 
         self.time += self.update_speed * dt
-        if int(self.time) >= len(self.images) - 1:
-            self.time = len(self.images) - 1
-            return False
-
-        return True
+        # if int(self.time) >= len(self.images) - 1:
+        #     self.time = len(self.images) - 1
+        #     return False
+        #
+        # return True

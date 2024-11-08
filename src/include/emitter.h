@@ -6,12 +6,13 @@
 
 typedef enum {
     POINT,
-} EmitterType;
+    CIRCLE,
+    RECTANGLE,
+} EmitterSpawnShape;
 
 typedef struct {
     /* Emitter type data */
-    EmitterType type;
-    vec2 s_point; /* POINT: the point where particles are emitted */
+    EmitterSpawnShape spawn_shape;
 
     /* Core emitter settings */
     bool looping;            /* if the emitter should loop */
@@ -21,11 +22,9 @@ typedef struct {
     int emission_number;     /* number of particles to emit */
 
     /* Core particle settings */
-    PyObject ***animations;    /* used for animation pooling */
-    int animations_count;      /* number of animations */
-    int *num_frames;           /* number of frames for each animation */
-    void (*update_function)(struct Emitter *); /* function pointer to update function */
-    void (*spawn_function)(struct Emitter *);  /* function pointer to spawn function */
+    PyObject ***animations; /* used for animation pooling */
+    int animations_count;   /* number of animations */
+    int *num_frames;        /* number of frames for each animation */
 
     generator lifetime;
     generator speed_x;
@@ -44,9 +43,6 @@ typedef struct {
     PyObject_HEAD Emitter emitter;
 } EmitterObject;
 
-extern void (*update_functions[])(Emitter *emitter);
-extern void (*spawn_functions[])(Emitter *emitter);
-
 extern PyTypeObject Emitter_Type;
 
 #define Emitter_Check(o) (Py_TYPE(o) == &Emitter_Type)
@@ -61,4 +57,10 @@ PyObject *
 emitter_str(EmitterObject *self);
 
 void
+_emitter_free(Emitter *emitter);
+
+void
 emitter_dealloc(EmitterObject *self);
+
+int
+emitter_allocate_and_copy_animations(Emitter *from, Emitter *to);

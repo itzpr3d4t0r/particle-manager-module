@@ -13,12 +13,102 @@ emitter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     return (PyObject *)self;
 }
 
+static FORCEINLINE int
+initGen_FromObj(PyObject *obj, generator *gen)
+{
+    /* Tries to extract either one or two floats from an object.
+     * If the object is a tuple, it must have one or two floats.
+     * If the object is a float, it is used as the minimum value. */
+
+    if (PyFloat_Check(obj)) {
+        gen->min = (float)PyFloat_AS_DOUBLE(obj);
+        gen->in_use = 1;
+
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+
+        return 1;
+    }
+    else if (PyLong_Check(obj)) {
+        gen->min = (float)PyLong_AsDouble(obj);
+        gen->in_use = 1;
+
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+
+        return 1;
+    }
+
+    Py_ssize_t size;
+
+    if (PyTuple_Check(obj)) {
+        size = PyTuple_GET_SIZE(obj);
+        if (size < 1 || size > 2)
+            return 0;
+
+        if (!FloatFromObj(PyTuple_GET_ITEM(obj, 0), &gen->min))
+            return 0;
+
+        if (size == 2) {
+            if (!FloatFromObj(PyTuple_GET_ITEM(obj, 1), &gen->max))
+                return 0;
+
+            gen->randomize = 1;
+        }
+    }
+    else if (PyList_Check(obj)) {
+        size = PyList_GET_SIZE(obj);
+        if (size < 1 || size > 2)
+            return 0;
+
+        if (!FloatFromObj(PyList_GET_ITEM(obj, 0), &gen->min))
+            return 0;
+
+        if (size == 2) {
+            if (!FloatFromObj(PyList_GET_ITEM(obj, 1), &gen->max))
+                return 0;
+            gen->randomize = 1;
+        }
+    }
+    else if (PySequence_Check(obj)) {
+        size = PySequence_Length(obj);
+        if (size < 1 || size > 2)
+            return 0;
+
+        if (!_FloatFromObjIndex(obj, 0, &gen->min))
+            return 0;
+
+        if (size == 2) {
+            if (!_FloatFromObjIndex(obj, 1, &gen->max))
+                return 0;
+            gen->randomize = 1;
+        }
+    }
+    else {
+        return 0;
+    }
+
+    if (gen->min > gen->max) {
+        float tmp = gen->min;
+        gen->min = gen->max;
+        gen->max = tmp;
+    }
+
+    gen->in_use = 1;
+
+    return 1;
+}
+
 int
 emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
 {
     Emitter *emitter = &self->emitter;
 
-    static char *kwlist[] = {"emit_type",
+    static char *kwlist[] = {"emit_shape",
                              "emit_number",
                              "looping",
                              "emit_interval",
@@ -35,25 +125,24 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
                              NULL};
 
     PyObject *images = NULL;
-    PyObject *lifetime_obj = NULL, *speed_x_obj = NULL, *speed_y_obj = NULL,
-             *acceleration_x_obj = NULL, *acceleration_y_obj = NULL,
-             *angle_obj = NULL;
+    PyObject *lifetime_obj = NULL, *speedx_obj = NULL, *speedy_obj = NULL,
+             *accx_obj = NULL, *accy_obj = NULL, *angle_obj = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "i|iiffOOOOOOOii", kwlist, &emitter->type,
+            args, kwds, "i|iiffOOOOOOOii", kwlist, &emitter->spawn_shape,
             &emitter->emission_number, &emitter->looping,
             &emitter->emission_interval, &emitter->emission_time, &images,
-            &lifetime_obj, &speed_x_obj, &speed_y_obj, &acceleration_x_obj,
-            &acceleration_y_obj, &angle_obj, &emitter->align_speed_to_angle,
+            &lifetime_obj, &speedx_obj, &speedy_obj, &accx_obj, &accy_obj,
+            &angle_obj, &emitter->align_speed_to_angle,
             &emitter->align_acceleration_to_angle)) {
         return -1;
     }
 
-    switch (emitter->type) {
+    switch (emitter->spawn_shape) {
         case POINT:
             break;
         default:
-            PyErr_SetString(PyExc_ValueError, "Invalid emitter type");
+            PyErr_SetString(PyExc_ValueError, "Invalid emitter spawn area shape");
             return -1;
     }
 
@@ -128,82 +217,40 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    if (lifetime_obj) {
-        generator *lifetime = &emitter->lifetime;
-        if (!RandRange_FromTupleOrNum(lifetime_obj, &lifetime->min, &lifetime->max,
-                                      &lifetime->randomize)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid lifetime argument");
-            return -1;
-        }
+    if (lifetime_obj && !initGen_FromObj(lifetime_obj, &emitter->lifetime)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid lifetime argument");
+        return -1;
     }
     else {
-        emitter->lifetime.min = 100.0f;
+        emitter->lifetime.min = 60.0f;
     }
 
-    if (speed_x_obj) {
-        generator *speed_x = &emitter->speed_x;
-        if (!RandRange_FromTupleOrNum(speed_x_obj, &speed_x->min, &speed_x->max,
-                                      &speed_x->randomize)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid speed_x argument");
-            return -1;
-        }
-    }
-    else {
-        emitter->speed_x.min = 0.0f;
+    if (speedx_obj && !initGen_FromObj(speedx_obj, &emitter->speed_x)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid speed_x argument");
+        return -1;
     }
 
-    if (speed_y_obj) {
-        generator *speed_y = &emitter->speed_y;
-        if (!RandRange_FromTupleOrNum(speed_y_obj, &speed_y->min, &speed_y->max,
-                                      &speed_y->randomize)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid speed_y argument");
-            return -1;
-        }
-    }
-    else {
-        emitter->speed_y.min = 0.0f;
+    if (speedy_obj && !initGen_FromObj(speedy_obj, &emitter->speed_y)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid speed_y argument");
+        return -1;
     }
 
-    if (acceleration_x_obj) {
-        generator *acceleration_x = &emitter->acceleration_x;
-        if (!RandRange_FromTupleOrNum(acceleration_x_obj, &acceleration_x->min,
-                                      &acceleration_x->max,
-                                      &acceleration_x->randomize)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid acceleration_x argument");
-            return -1;
-        }
-    }
-    else {
-        emitter->acceleration_x.min = 0.0f;
+    if (accx_obj && !initGen_FromObj(accx_obj, &emitter->acceleration_x)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid acceleration_x argument");
+        return -1;
     }
 
-    if (acceleration_y_obj) {
-        generator *acceleration_y = &emitter->acceleration_y;
-        if (!RandRange_FromTupleOrNum(acceleration_y_obj, &acceleration_y->min,
-                                      &acceleration_y->max,
-                                      &acceleration_y->randomize)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid acceleration_y argument");
-            return -1;
-        }
-    }
-    else {
-        emitter->acceleration_y.min = 0.0f;
+    if (accy_obj && !initGen_FromObj(accy_obj, &emitter->acceleration_y)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid acceleration_y argument");
+        return -1;
     }
 
-    if (angle_obj) {
-        generator *angle = &emitter->angle;
-        if (!RandRange_FromTupleOrNum(angle_obj, &angle->min, &angle->max,
-                                      &angle->randomize)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid angle argument");
-            return -1;
-        }
-        emitter->angled = true;
-    }
-    else {
-        emitter->angled = false;
+    if (angle_obj && !initGen_FromObj(angle_obj, &emitter->angle)) {
+        PyErr_SetString(PyExc_TypeError, "Invalid angle argument");
+        return -1;
     }
 
-    if (!emitter->angled) {
+    if (!emitter->angle.in_use) {
         if (emitter->align_speed_to_angle) {
             PyErr_SetString(
                 PyExc_ValueError,
@@ -217,8 +264,6 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
             return -1;
         }
     }
-
-    emitter->update_function(emitter);
 
     return 0;
 }
@@ -393,13 +438,13 @@ emitter_str(EmitterObject *self)
         return NULL;
     }
 
-    char *type_str;
-    switch (e->type) {
+    char *spawn_shape_str;
+    switch (e->spawn_shape) {
         case POINT:
-            type_str = "POINT";
+            spawn_shape_str = "POINT";
             break;
         default:
-            type_str = "UNKNOWN";
+            spawn_shape_str = "UNKNOWN";
             break;
     }
 
@@ -412,7 +457,7 @@ emitter_str(EmitterObject *self)
 
     PyObject *str = PyUnicode_FromFormat(
         "Emitter("
-        "\n    type=%s,"
+        "\n    spawn_shape=%s,"
         "\n    emission_number=%d,"
         "\n    looping=%s,"
         "\n    emission_interval=%R,"
@@ -427,15 +472,11 @@ emitter_str(EmitterObject *self)
         "\n    align_speed_to_angle=%s,"
         "\n    align_acceleration_to_angle=%s"
         "\n)",
-        type_str,
-        e->emission_number,
-        e->looping ? "True" : "False",
-        py_emission_interval,
-        py_emission_time,
-        e->animations_count,
-        lifetime_min, lifetime_max, lifetime->randomize ? "True" : "False",
-        speed_x_min, speed_x_max, speed_x->randomize ? "True" : "False", speed_y_min,
-        speed_y_max, speed_y->randomize ? "True" : "False", acceleration_x_min,
+        spawn_shape_str, e->emission_number, e->looping ? "True" : "False",
+        py_emission_interval, py_emission_time, e->animations_count, lifetime_min,
+        lifetime_max, lifetime->randomize ? "True" : "False", speed_x_min,
+        speed_x_max, speed_x->randomize ? "True" : "False", speed_y_min, speed_y_max,
+        speed_y->randomize ? "True" : "False", acceleration_x_min,
         acceleration_x_max, accel_x->randomize ? "True" : "False",
         acceleration_y_min, acceleration_y_max,
         accel_y->randomize ? "True" : "False", angle_min, angle_max,
@@ -462,18 +503,63 @@ emitter_str(EmitterObject *self)
 }
 
 void
-emitter_dealloc(EmitterObject *self)
+_emitter_free(Emitter *emitter)
 {
-    if (self->emitter.animations) {
-        for (int i = 0; i < self->emitter.animations_count; i++) {
-            for (int j = 0; j < self->emitter.num_frames[i]; j++)
-                Py_DECREF(self->emitter.animations[i][j]);
-            PyMem_Free(self->emitter.animations[i]);
+    if (emitter->animations) {
+        for (int i = 0; i < emitter->animations_count; i++) {
+            for (int j = 0; j < emitter->num_frames[i]; j++)
+                Py_DECREF(emitter->animations[i][j]);
+            PyMem_Free(emitter->animations[i]);
         }
-        PyMem_Free(self->emitter.animations);
+        PyMem_Free(emitter->animations);
     }
 
-    PyMem_Free(self->emitter.num_frames);
+    PyMem_Free(emitter->num_frames);
+}
+
+void
+emitter_dealloc(EmitterObject *self)
+{
+    _emitter_free(&self->emitter);
 
     Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+int
+emitter_allocate_and_copy_animations(Emitter *from, Emitter *to)
+{
+    to->animations = PyMem_New(PyObject **, from->animations_count);
+    if (!to->animations) {
+        PyErr_NoMemory();
+        return 0;
+    }
+
+    memset(to->animations, 0, sizeof(PyObject **) * from->animations_count);
+
+    to->num_frames = PyMem_New(int, from->animations_count);
+    if (!to->num_frames) {
+        PyErr_NoMemory();
+        return 0;
+    }
+    memcpy(to->num_frames, from->num_frames, sizeof(int) * from->animations_count);
+
+    to->animations_count = from->animations_count;
+
+    for (int i = 0; i < from->animations_count; i++) {
+        to->animations[i] = PyMem_New(PyObject *, from->num_frames[i]);
+        if (!to->animations[i]) {
+            PyErr_NoMemory();
+            return 0;
+        }
+
+        memset(to->animations[i], 0, sizeof(PyObject *) * from->num_frames[i]);
+
+        for (int j = 0; j < from->num_frames[i]; j++) {
+            PyObject *img = from->animations[i][j];
+            Py_INCREF(img);
+            to->animations[i][j] = img;
+        }
+    }
+
+    return 1;
 }

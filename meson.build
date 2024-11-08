@@ -170,9 +170,10 @@ summary(
 # List of source files
 src_files = [
     'src/module.c',
-    'src/particle_group.c',
-    'src/simd_particles_avx2.c',
-    'src/simd_particles_sse2.c',
+    'src/updaters_simd_avx2.c',
+    'src/updaters_simd_sse2.c',
+    'src/data_block.c',
+    'src/effect_data_block.c',
     'src/float_array.c',
     'src/particle_manager.c',
     'src/emitter.c',

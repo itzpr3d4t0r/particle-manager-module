@@ -4,8 +4,9 @@
 #include "include/particle_effect.h"
 
 void **_PGSLOTS_surface;
-void (*update_functions[])(Emitter *emitter) = {NULL};
-void (*spawn_functions[])(Emitter *emitter) = {NULL};
+/* internal data for the random number generator */
+uint32_t mt[N];
+int mti = N + 1;
 
 /* ===================================================================== */
 PyTypeObject Emitter_Type = {
@@ -27,20 +28,16 @@ PyTypeObject ParticleEffect_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = PyType_GenericNew,
     .tp_init = (initproc)particle_effect_init,
+    .tp_dealloc = (destructor)particle_effect_dealloc,
     .tp_str = (reprfunc)particle_effect_str,
 };
 
 static PyMethodDef ParticleManagerMethods[] = {
+    {"spawn_effect", (PyCFunction)pm_spawn_effect, METH_FASTCALL, NULL},
     {"update", (PyCFunction)pm_update, METH_O, NULL},
-    {"draw", (PyCFunction)pm_draw, METH_O, NULL},
-    {"add_group", (PyCFunction)pm_add_group, METH_FASTCALL, NULL},
     {NULL, NULL, 0, NULL}};
 
-static PyGetSetDef ParticleManagerAttributes[] = {
-    {"num_particles", (getter)pm_get_num_particles, NULL, NULL, NULL},
-    {"num_groups", (getter)pm_get_num_groups, NULL, NULL, NULL},
-    {"groups", (getter)pm_get_groups, NULL, NULL, NULL},
-    {NULL, 0, NULL, NULL, NULL}};
+static PyGetSetDef ParticleManagerAttributes[] = {{NULL, 0, NULL, NULL, NULL}};
 
 static PyTypeObject ParticleManagerType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "particle_manager.ParticleManager",
@@ -89,7 +86,7 @@ PyInit_itz_particle_manager(void)
     Py_INCREF(&ParticleEffect_Type);
     PyModule_AddObject(module, "ParticleEffect", (PyObject *)&ParticleEffect_Type);
 
-    if (PyModule_AddIntConstant(module, "SPAWN_POINT", POINT) == -1)
+    if (PyModule_AddIntConstant(module, "EMIT_POINT", POINT) == -1)
         return NULL;
 
     init_genrand((uint32_t)time(NULL));
