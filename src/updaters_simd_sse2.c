@@ -104,8 +104,6 @@ UDB_no_acceleration_sse2(DataBlock *block, float dt)
     const int n_iters_4 = block->particles_count / 4;
     const int n_excess = block->particles_count % 4;
     const __m128 dt_v = _mm_set1_ps(dt);
-    const __m128i load_mask = _mm_set_epi32(
-        0, n_excess > 2 ? -1 : 0, n_excess > 1 ? -1 : 0, n_excess > 0 ? -1 : 0);
 
     int i;
 
@@ -161,8 +159,6 @@ UDB_acceleration_x_sse2(DataBlock *block, float dt)
     const int n_iters_4 = block->particles_count / 4;
     const int n_excess = block->particles_count % 4;
     const __m128 dt_v = _mm_set1_ps(dt);
-    const __m128i load_mask = _mm_set_epi32(
-        0, n_excess > 2 ? -1 : 0, n_excess > 1 ? -1 : 0, n_excess > 0 ? -1 : 0);
 
     int i;
 
@@ -223,8 +219,6 @@ UDB_acceleration_y_sse2(DataBlock *block, float dt)
     const int n_iters_4 = block->particles_count / 4;
     const int n_excess = block->particles_count % 4;
     const __m128 dt_v = _mm_set1_ps(dt);
-    const __m128i load_mask = _mm_set_epi32(
-        0, n_excess > 2 ? -1 : 0, n_excess > 1 ? -1 : 0, n_excess > 0 ? -1 : 0);
 
     int i;
 
