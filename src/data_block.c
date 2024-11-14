@@ -362,7 +362,7 @@ draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
                              (int)positions_y[i] - surf->h / 2, surf->w, surf->h};
 
         if (pgSurface_Blit(dest, src_obj, &dst_rect, NULL, blend_flag))
-            return NULL;
+            return 0;
     }
 
     return 1;
