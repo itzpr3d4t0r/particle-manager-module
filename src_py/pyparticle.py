@@ -4,9 +4,9 @@ from pygame import Surface
 class PyParticle:
     imgs_sequences = [
         [Surface((s, s)) for s in range(10, 1, -1)],
-        # [Surface((s, s)) for s in range(5, 1, -1)],
-        # [Surface((s, s)) for s in range(5, 1, -1)],
-        # [Surface((s, s)) for s in range(5, 1, -1)],
+        [Surface((s, s)) for s in range(5, 1, -1)],
+        [Surface((s, s)) for s in range(5, 1, -1)],
+        [Surface((s, s)) for s in range(5, 1, -1)],
     ]
 
     colors = [
@@ -20,7 +20,17 @@ class PyParticle:
             img.fill(color)
 
     def __init__(
-        self, x, y, vx, vy, accx, accy, grav_x=0, grav_y=0, update_speed=1, img_idx=0
+        self,
+        x,
+        y,
+        vx,
+        vy,
+        accx=0,
+        accy=0,
+        grav_x=0,
+        grav_y=0,
+        update_speed=1,
+        imgs=None,
     ):
         self.x = x
         self.y = y
@@ -32,7 +42,7 @@ class PyParticle:
         self.grav_y = grav_y
         self.time = 0
         self.update_speed = update_speed
-        self.images = self.imgs_sequences[img_idx]
+        self.images = imgs if imgs is not None else self.imgs_sequences[0]
 
     def update(self, dt):
         self.acc_x += self.grav_x
@@ -43,8 +53,8 @@ class PyParticle:
         self.y += self.vy * dt
 
         self.time += self.update_speed * dt
-        # if int(self.time) >= len(self.images) - 1:
-        #     self.time = len(self.images) - 1
-        #     return False
-        #
-        # return True
+        if int(self.time) >= len(self.images) - 1:
+            self.time = len(self.images) - 1
+            return False
+
+        return True

@@ -71,7 +71,7 @@ if plat == 'win' and host_machine.cpu_family().startswith('x86')
         )
     endif
 
-    sdl_ver = '2.30.8'
+    sdl_ver = '2.30.9'
 
     dlls = []
 
@@ -156,7 +156,7 @@ elif host_machine.cpu_family() == 'aarch64'
 endif
 
 if simd_sse2_neon
-    add_global_arguments('-DPG_ENABLE_ARM_NEON=1', language: 'c')
+    add_global_arguments('-DENABLE_ARM_NEON=1', language: 'c')
 endif
 
 summary(

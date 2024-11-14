@@ -21,5 +21,8 @@ init_effect_data_block(EffectDataBlock *block, ParticleEffect *effect,
 void
 update_effect_data_block(EffectDataBlock *block, float dt);
 
+int
+draw_effect_data_block(EffectDataBlock *block, pgSurfaceObject *dest);
+
 void
 dealloc_effect_data_block(EffectDataBlock *g);

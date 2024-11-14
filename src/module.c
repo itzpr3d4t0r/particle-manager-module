@@ -35,9 +35,13 @@ PyTypeObject ParticleEffect_Type = {
 static PyMethodDef ParticleManagerMethods[] = {
     {"spawn_effect", (PyCFunction)pm_spawn_effect, METH_FASTCALL, NULL},
     {"update", (PyCFunction)pm_update, METH_O, NULL},
+    {"draw", (PyCFunction)pm_draw, METH_O, NULL},
     {NULL, NULL, 0, NULL}};
 
-static PyGetSetDef ParticleManagerAttributes[] = {{NULL, 0, NULL, NULL, NULL}};
+static PyGetSetDef ParticleManagerAttributes[] = {
+    {"num_particles", (getter)pm_get_num_particles, NULL, NULL, NULL},
+    {NULL, 0, NULL, NULL, NULL}
+};
 
 static PyTypeObject ParticleManagerType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "particle_manager.ParticleManager",

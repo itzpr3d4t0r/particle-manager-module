@@ -34,6 +34,11 @@ PyObject *
 pm_update(ParticleManager *self, PyObject *arg);
 
 PyObject *
+pm_draw(ParticleManager *self, PyObject *arg);
+
+PyObject *
 pm_str(ParticleManager *self);
 
+PyObject *
+pm_get_num_particles(ParticleManager *self, void *closure);
 /* ===================================================================== */
