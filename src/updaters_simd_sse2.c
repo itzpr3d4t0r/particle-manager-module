@@ -46,13 +46,13 @@ UDB_all_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 ax = _mm_maskload_ps(accelerations_x, load_mask);
-        __m128 ay = _mm_maskload_ps(accelerations_y, load_mask);
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
+        __m128 ax = _mm_loadu_ps(accelerations_x, load_mask);
+        __m128 ay = _mm_loadu_ps(accelerations_y, load_mask);
+        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
+        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
+        __m128 px = _mm_loadu_ps(positions_x, load_mask);
+        __m128 py = _mm_loadu_ps(positions_y, load_mask);
+        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
 
         vx = _mm_add_ps(vx, _mm_mul_ps(ax, dt_v));
         vy = _mm_add_ps(vy, _mm_mul_ps(ay, dt_v));
@@ -60,11 +60,11 @@ UDB_all_sse2(DataBlock *block, float dt)
         py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
         t = _mm_sub_ps(t, dt_v);
 
-        _mm_maskstore_ps(velocities_x, load_mask, vx);
-        _mm_maskstore_ps(velocities_y, load_mask, vy);
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+        _mm_storeu_ps(velocities_x, vx);
+        _mm_storeu_ps(velocities_y, vy);
+        _mm_storeu_ps(positions_x, px);
+        _mm_storeu_ps(positions_y, py);
+        _mm_storeu_ps(lifetimes, t);
 
         accelerations_x += 4;
         accelerations_y += 4;
@@ -75,26 +75,12 @@ UDB_all_sse2(DataBlock *block, float dt)
         lifetimes += 4;
     }
 
-    if (n_excess) {
-        __m128 ax = _mm_maskload_ps(accelerations_x, load_mask);
-        __m128 ay = _mm_maskload_ps(accelerations_y, load_mask);
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
-
-        vx = _mm_add_ps(vx, _mm_mul_ps(ax, dt_v));
-        vy = _mm_add_ps(vy, _mm_mul_ps(ay, dt_v));
-        px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
-        py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
-        t = _mm_sub_ps(t, dt_v);
-
-        _mm_maskstore_ps(velocities_x, load_mask, vx);
-        _mm_maskstore_ps(velocities_y, load_mask, vy);
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+    for (i = 0; i < n_excess; i++) {
+        velocities_x[i] += accelerations_x[i] * dt;
+        velocities_y[i] += accelerations_y[i] * dt;
+        positions_x[i] += velocities_x[i] * dt;
+        positions_y[i] += velocities_y[i] * dt;
+        lifetimes[i] -= dt;
     }
 
     recalculate_particle_count(block);
@@ -126,19 +112,19 @@ UDB_no_acceleration_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
+        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
+        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
+        __m128 px = _mm_loadu_ps(positions_x, load_mask);
+        __m128 py = _mm_loadu_ps(positions_y, load_mask);
+        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
 
         px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
         py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
         t = _mm_sub_ps(t, dt_v);
 
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+        _mm_storeu_ps(positions_x, px);
+        _mm_storeu_ps(positions_y, py);
+        _mm_storeu_ps(lifetimes, t);
 
         velocities_x += 4;
         velocities_y += 4;
@@ -147,22 +133,10 @@ UDB_no_acceleration_sse2(DataBlock *block, float dt)
         lifetimes += 4;
     }
 
-    if (n_excess) {
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
-
-        px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
-        py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
-
-        t = _mm_sub_ps(t, dt_v);
-
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+    for (i = 0; i < n_excess; i++) {
+        positions_x[i] += velocities_x[i] * dt;
+        positions_y[i] += velocities_y[i] * dt;
+        lifetimes[i] -= dt;
     }
 
     recalculate_particle_count(block);
@@ -195,22 +169,22 @@ UDB_acceleration_x_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 ax = _mm_maskload_ps(accelerations_x, load_mask);
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
+        __m128 ax = _mm_loadu_ps(accelerations_x, load_mask);
+        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
+        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
+        __m128 px = _mm_loadu_ps(positions_x, load_mask);
+        __m128 py = _mm_loadu_ps(positions_y, load_mask);
+        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
 
         vx = _mm_add_ps(vx, _mm_mul_ps(ax, dt_v));
         px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
         py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
         t = _mm_sub_ps(t, dt_v);
 
-        _mm_maskstore_ps(velocities_x, load_mask, vx);
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+        _mm_storeu_ps(velocities_x, vx);
+        _mm_storeu_ps(positions_x, px);
+        _mm_storeu_ps(positions_y, py);
+        _mm_storeu_ps(lifetimes, t);
 
         accelerations_x += 4;
         velocities_x += 4;
@@ -220,23 +194,11 @@ UDB_acceleration_x_sse2(DataBlock *block, float dt)
         lifetimes += 4;
     }
 
-    if (n_excess) {
-        __m128 ax = _mm_maskload_ps(accelerations_x, load_mask);
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
-
-        vx = _mm_add_ps(vx, _mm_mul_ps(ax, dt_v));
-        px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
-        py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
-        t = _mm_sub_ps(t, dt_v);
-
-        _mm_maskstore_ps(velocities_x, load_mask, vx);
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+    for (i = 0; i < n_excess; i++) {
+        velocities_x[i] += accelerations_x[i] * dt;
+        positions_x[i] += velocities_x[i] * dt;
+        positions_y[i] += velocities_y[i] * dt;
+        lifetimes[i] -= dt;
     }
 
     recalculate_particle_count(block);
@@ -269,22 +231,22 @@ UDB_acceleration_y_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 ay = _mm_maskload_ps(accelerations_y, load_mask);
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
+        __m128 ay = _mm_loadu_ps(accelerations_y, load_mask);
+        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
+        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
+        __m128 px = _mm_loadu_ps(positions_x, load_mask);
+        __m128 py = _mm_loadu_ps(positions_y, load_mask);
+        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
 
         vy = _mm_add_ps(vy, _mm_mul_ps(ay, dt_v));
         px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
         py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
         t = _mm_sub_ps(t, dt_v);
 
-        _mm_maskstore_ps(velocities_y, load_mask, vy);
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+        _mm_storeu_ps(velocities_y, vy);
+        _mm_storeu_ps(positions_x, px);
+        _mm_storeu_ps(positions_y, py);
+        _mm_storeu_ps(lifetimes, t);
 
         accelerations_y += 4;
         velocities_x += 4;
@@ -294,23 +256,11 @@ UDB_acceleration_y_sse2(DataBlock *block, float dt)
         lifetimes += 4;
     }
 
-    if (n_excess) {
-        __m128 ay = _mm_maskload_ps(accelerations_y, load_mask);
-        __m128 vx = _mm_maskload_ps(velocities_x, load_mask);
-        __m128 vy = _mm_maskload_ps(velocities_y, load_mask);
-        __m128 px = _mm_maskload_ps(positions_x, load_mask);
-        __m128 py = _mm_maskload_ps(positions_y, load_mask);
-        __m128 t = _mm_maskload_ps(lifetimes, load_mask);
-
-        vy = _mm_add_ps(vy, _mm_mul_ps(ay, dt_v));
-        px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
-        py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
-        t = _mm_sub_ps(t, dt_v);
-
-        _mm_maskstore_ps(velocities_y, load_mask, vy);
-        _mm_maskstore_ps(positions_x, load_mask, px);
-        _mm_maskstore_ps(positions_y, load_mask, py);
-        _mm_maskstore_ps(lifetimes, load_mask, t);
+    for (i = 0; i < n_excess; i++) {
+        velocities_y[i] += accelerations_y[i] * dt;
+        positions_x[i] += velocities_x[i] * dt;
+        positions_y[i] += velocities_y[i] * dt;
+        lifetimes[i] -= dt;
     }
 
     recalculate_particle_count(block);
