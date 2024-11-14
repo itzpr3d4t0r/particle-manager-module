@@ -51,6 +51,17 @@ _pm_spawn_effect_helper(EffectDataBlock *block, PyObject *const *args,
     return init_effect_data_block(block, &effect->effect, pos);
 }
 
+Py_ssize_t
+_pm_get_num_particles(ParticleManager *self)
+{
+    Py_ssize_t num_particles = 0;
+    for (Py_ssize_t i = 0; i < self->used_blocks; i++)
+        for (Py_ssize_t j = 0; j < self->blocks[i].blocks_count; j++)
+            num_particles += self->blocks[i].p_data[j].particles_count;
+
+    return num_particles;
+}
+
 /* ======================================================================== */
 
 PyObject *
@@ -103,8 +114,33 @@ pm_update(ParticleManager *self, PyObject *arg)
 }
 
 PyObject *
+pm_draw(ParticleManager *self, PyObject *arg)
+{
+    if (!pgSurface_Check(arg))
+        return RAISE(PyExc_TypeError, "Invalid surface object");
+
+    pgSurfaceObject *dest = (pgSurfaceObject *)arg;
+    SURF_INIT_CHECK((&dest->surf));
+
+    for (Py_ssize_t i = 0; i < self->used_blocks; i++)
+        if (!draw_effect_data_block(&self->blocks[i], dest))
+            return NULL;
+
+    Py_RETURN_NONE;
+}
+
+PyObject *
 pm_str(ParticleManager *self)
 {
-    return PyUnicode_FromFormat("ParticleManager(blocks: -, tot_particles: -)");
+    return PyUnicode_FromFormat(
+        "ParticleManager(effects_playing: %lld, total particles: %lld)",
+        self->used_blocks, _pm_get_num_particles(self));
 }
+
+PyObject *
+pm_get_num_particles(ParticleManager *self, void *closure)
+{
+    return PyLong_FromSsize_t(_pm_get_num_particles(self));
+}
+
 /* ===================================================================== */

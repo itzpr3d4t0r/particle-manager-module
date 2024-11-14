@@ -28,13 +28,30 @@ init_effect_data_block(EffectDataBlock *block, ParticleEffect *effect, vec2 posi
 void
 update_effect_data_block(EffectDataBlock *block, float dt)
 {
+    int active_blocks = 0;
+
     for (Py_ssize_t i = 0; i < block->blocks_count; i++) {
+        if (block->p_data[i].ended)
+            continue;
+
         update_data_block(&block->p_data[i], dt);
-        /* TODO: Check if the effect has ended */
+
+        if (!block->p_data[i].ended)
+            active_blocks++;
     }
 
-    if (block->blocks_count == 0)
+    if (active_blocks == 0)
         block->ended = true;
+}
+
+int
+draw_effect_data_block(EffectDataBlock *block, pgSurfaceObject *dest)
+{
+    for (Py_ssize_t i = 0; i < block->blocks_count; i++)
+        if (!draw_data_block(&block->p_data[i], dest, block->p_data[i].blend_mode))
+            return 0;
+
+    return 1;
 }
 
 void

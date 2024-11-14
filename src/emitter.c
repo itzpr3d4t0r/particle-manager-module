@@ -9,6 +9,7 @@ emitter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     }
 
     memset(&self->emitter, 0, sizeof(Emitter));
+    self->emitter.blend_mode = 1;
 
     return (PyObject *)self;
 }
@@ -22,7 +23,7 @@ initGen_FromObj(PyObject *obj, generator *gen)
 
     if (PyFloat_Check(obj)) {
         gen->min = (float)PyFloat_AS_DOUBLE(obj);
-        gen->in_use = 1;
+        gen->in_use = true;
 
         if (PyErr_Occurred()) {
             PyErr_Clear();
@@ -33,7 +34,7 @@ initGen_FromObj(PyObject *obj, generator *gen)
     }
     else if (PyLong_Check(obj)) {
         gen->min = (float)PyLong_AsDouble(obj);
-        gen->in_use = 1;
+        gen->in_use = true;
 
         if (PyErr_Occurred()) {
             PyErr_Clear();
@@ -98,7 +99,7 @@ initGen_FromObj(PyObject *obj, generator *gen)
         gen->max = tmp;
     }
 
-    gen->in_use = 1;
+    gen->in_use = true;
 
     return 1;
 }
@@ -122,6 +123,7 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
                              "angle",
                              "align_speed_to_angle",
                              "align_acceleration_to_angle",
+                             "blend_mode",
                              NULL};
 
     PyObject *images = NULL;
@@ -129,12 +131,12 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
              *accx_obj = NULL, *accy_obj = NULL, *angle_obj = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "i|iiffOOOOOOOii", kwlist, &emitter->spawn_shape,
+            args, kwds, "i|iiffOOOOOOOiii", kwlist, &emitter->spawn_shape,
             &emitter->emission_number, &emitter->looping,
             &emitter->emission_interval, &emitter->emission_time, &images,
             &lifetime_obj, &speedx_obj, &speedy_obj, &accx_obj, &accy_obj,
             &angle_obj, &emitter->align_speed_to_angle,
-            &emitter->align_acceleration_to_angle)) {
+            &emitter->align_acceleration_to_angle, &emitter->blend_mode)) {
         return -1;
     }
 
@@ -195,7 +197,7 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
 
             memset(emitter->animations[i], 0, sizeof(PyObject *) * item_len);
 
-            emitter->num_frames[i] = item_len;
+            emitter->num_frames[i] = item_len - 1;
 
             for (int j = 0; j < item_len; j++) {
                 PyObject *img = item_list[j];

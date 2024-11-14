@@ -3,7 +3,7 @@
 #include "emitter.h"
 
 typedef struct {
-    Emitter *emitters; /* emitter array */
+    Emitter *emitters;  /* emitter array */
     int emitters_count; /* number of emitters */
 } ParticleEffect;
 

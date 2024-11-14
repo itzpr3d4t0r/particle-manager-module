@@ -9,8 +9,9 @@ particle_effect_init(ParticleEffectObject *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &emitters))
         return -1;
 
-    if (!PyList_Check(emitters)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid emitters, must be a list");
+    if (!SequenceFast_Check(emitters)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "Invalid emitters, must be a list or tuple");
         return -1;
     }
 
@@ -62,5 +63,6 @@ particle_effect_dealloc(ParticleEffectObject *self)
 PyObject *
 particle_effect_str(ParticleEffectObject *self)
 {
-    return PyUnicode_FromFormat("ParticleEffect(emitters=%d)", self->effect.emitters_count);
+    return PyUnicode_FromFormat("ParticleEffect(emitters=%d)",
+                                self->effect.emitters_count);
 }

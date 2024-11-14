@@ -1,8 +1,10 @@
 import unittest
+from itz_particle_manager import ParticleManager
 
 
 class TestParticleManager(unittest.TestCase):
-    pass
+    def test_init(self):
+        pm = ParticleManager()
 
 
 if __name__ == "__main__":

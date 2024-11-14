@@ -31,6 +31,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON A
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <time.h>
 
 #define N 624
@@ -39,8 +40,8 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON A
 #define UPPER_MASK 0x80000000U  // Most significant w-r bits
 #define LOWER_MASK 0x7fffffffU  // Least significant r bits
 
-extern uint32_t mt[N];   // The array for the state vector
-extern int mti;  // mti == N+1 means mt[N] is not initialized
+extern uint32_t mt[N];  // The array for the state vector
+extern int mti;         // mti == N+1 means mt[N] is not initialized
 
 // Initialize the generator from a seed
 static void
@@ -104,11 +105,18 @@ rand_between(float lo, float hi)
     return (float)(lo + (hi - lo) * rand_f());
 }
 
+static int
+rand_int_between(int lo, int hi)
+{
+    /* Returns a random integer in the range [lo, hi] */
+    return (int)(lo + (genrand_int32() % (hi - lo + 1)));
+}
+
 typedef struct {
     float min;
     float max;
     int randomize;
-    int in_use;
+    bool in_use;
 } generator;
 
 static float

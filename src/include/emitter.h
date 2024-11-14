@@ -34,6 +34,7 @@ typedef struct {
     generator angle;
 
     /* Additional particle settings */
+    int blend_mode;
     bool angled;
     bool align_speed_to_angle;
     bool align_acceleration_to_angle;

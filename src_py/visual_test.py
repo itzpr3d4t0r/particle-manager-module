@@ -1,7 +1,7 @@
-from random import random
+from random import random, randint
 
 import pygame
-from itz_particle_manager import ParticleManager, SPAWN_POINT
+from itz_particle_manager import ParticleManager, EMIT_POINT, Emitter, ParticleEffect
 
 from src_py.pyparticle import PyParticle
 
@@ -13,10 +13,10 @@ def rand_between(low, high):
 
 
 imgs = [
-    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
-    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
-    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
-    [pygame.Surface((s, s)) for s in range(5, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
+    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
 ]
 
 for seq, color in zip(
@@ -32,11 +32,23 @@ for seq, color in zip(
         img.fill(color)
 
 PARTICLE_NUM = 30000
-PARTICLE_NUM_ON_CLICK = 1000
+PARTICLE_NUM_ON_CLICK = 10000
 idx = 0
 
 PM = ParticleManager()
 particles = []
+
+emitter = Emitter(
+    emit_shape=EMIT_POINT,
+    emit_number=PARTICLE_NUM_ON_CLICK,
+    images=imgs,
+    particle_lifetime=(60, 180),
+    speed_x=(-2, 2),
+    speed_y=(-2, 2),
+    blend_mode=pygame.BLEND_ADD,
+)
+
+effect = ParticleEffect([emitter])
 
 screen = pygame.display.set_mode((1000, 1000))
 
@@ -44,8 +56,10 @@ use_pm = True
 
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 20, True)
-pm_mode_txt = font.render("PM mode (press 1 to change mode)", True, "green")
-list_mode_txt = font.render("List mode  (press 1 to change mode)", True, "green")
+pm_mode_txt = font.render(
+    "Using: ParticleManager (press 1 to change mode)", True, "green"
+)
+list_mode_txt = font.render("Using: List (press 1 to change mode)", True, "green")
 click_to_spawn = font.render("Click any mouse button to spawn particles", True, "white")
 fps_text = font.render("fps: 0", True, "red")
 
@@ -60,10 +74,6 @@ while True:
     if use_pm:
         PM.update(dt)
         PM.draw(screen)
-        screen.blit(
-            font.render(f"num groups: {PM.num_groups}", True, "red"),
-            (180, 30),
-        )
     else:
         particles = [p for p in particles if p.update(dt)]
         screen.fblits(
@@ -78,32 +88,19 @@ while True:
     timer += dt
     if timer >= 5:
         timer = 0
-        idx = (idx + 1) % len(imgs)
+
         if use_pm:
-            PM.add_group(
-                pygame.BLEND_ADD,
-                SPAWN_POINT,
-                PARTICLE_NUM_ON_CLICK,
-                (500, 500),
-                [imgs[idx]],
-                (-5, 5),  # x velocity info
-                (-5, 5),  # y velocity info
-                0,  # x acceleration info
-                0,  # y acceleration info
-                (0.025, 0.8),  # update speed info
-            )
+            PM.spawn_effect(effect, (500, 500))
         else:
             particles.extend(
                 [
                     PyParticle(
                         500,
                         500,
-                        rand_between(-5, 5),
-                        rand_between(-5, 5),
-                        0,
-                        0,
-                        update_speed=rand_between(0.025, 0.8),
-                        img_idx=idx,
+                        rand_between(-1, 1),
+                        rand_between(-1, 1),
+                        update_speed=rand_between(0.025, 0.028),
+                        imgs=imgs[randint(0, len(imgs) - 1)],
                     )
                     for _ in range(PARTICLE_NUM_ON_CLICK)
                 ]
@@ -128,33 +125,3 @@ while True:
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_1:
                 use_pm = not use_pm
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if use_pm:
-                PM.add_group(
-                    pygame.BLEND_ADD,
-                    SPAWN_POINT,
-                    PARTICLE_NUM_ON_CLICK,
-                    pygame.mouse.get_pos(),
-                    [imgs[idx]],
-                    (-5, 5),  # x velocity info
-                    (-5, 5),  # y velocity info
-                    0,  # x acceleration info
-                    0,  # y acceleration info
-                    (0.025, 0.8),  # update speed info
-                )
-            else:
-                particles.extend(
-                    [
-                        PyParticle(
-                            *pygame.mouse.get_pos(),
-                            rand_between(-5, 5),
-                            rand_between(-5, 5),
-                            0,
-                            0,
-                            update_speed=rand_between(0.025, 0.8),
-                            img_idx=idx,
-                        )
-                        for _ in range(PARTICLE_NUM_ON_CLICK)
-                    ]
-                )
-            idx = (idx + 1) % len(imgs)
