@@ -40,19 +40,17 @@ UDB_all_sse2(DataBlock *block, float dt)
     const int n_iters_4 = block->particles_count / 4;
     const int n_excess = block->particles_count % 4;
     const __m128 dt_v = _mm_set1_ps(dt);
-    const __m128i load_mask = _mm_set_epi32(
-        0, n_excess > 2 ? -1 : 0, n_excess > 1 ? -1 : 0, n_excess > 0 ? -1 : 0);
 
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 ax = _mm_loadu_ps(accelerations_x, load_mask);
-        __m128 ay = _mm_loadu_ps(accelerations_y, load_mask);
-        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
-        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
-        __m128 px = _mm_loadu_ps(positions_x, load_mask);
-        __m128 py = _mm_loadu_ps(positions_y, load_mask);
-        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
+        __m128 ax = _mm_loadu_ps(accelerations_x);
+        __m128 ay = _mm_loadu_ps(accelerations_y);
+        __m128 vx = _mm_loadu_ps(velocities_x);
+        __m128 vy = _mm_loadu_ps(velocities_y);
+        __m128 px = _mm_loadu_ps(positions_x);
+        __m128 py = _mm_loadu_ps(positions_y);
+        __m128 t = _mm_loadu_ps(lifetimes);
 
         vx = _mm_add_ps(vx, _mm_mul_ps(ax, dt_v));
         vy = _mm_add_ps(vy, _mm_mul_ps(ay, dt_v));
@@ -112,11 +110,11 @@ UDB_no_acceleration_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
-        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
-        __m128 px = _mm_loadu_ps(positions_x, load_mask);
-        __m128 py = _mm_loadu_ps(positions_y, load_mask);
-        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
+        __m128 vx = _mm_loadu_ps(velocities_x);
+        __m128 vy = _mm_loadu_ps(velocities_y);
+        __m128 px = _mm_loadu_ps(positions_x);
+        __m128 py = _mm_loadu_ps(positions_y);
+        __m128 t = _mm_loadu_ps(lifetimes);
 
         px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
         py = _mm_add_ps(py, _mm_mul_ps(vy, dt_v));
@@ -169,12 +167,12 @@ UDB_acceleration_x_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 ax = _mm_loadu_ps(accelerations_x, load_mask);
-        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
-        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
-        __m128 px = _mm_loadu_ps(positions_x, load_mask);
-        __m128 py = _mm_loadu_ps(positions_y, load_mask);
-        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
+        __m128 ax = _mm_loadu_ps(accelerations_x);
+        __m128 vx = _mm_loadu_ps(velocities_x);
+        __m128 vy = _mm_loadu_ps(velocities_y);
+        __m128 px = _mm_loadu_ps(positions_x);
+        __m128 py = _mm_loadu_ps(positions_y);
+        __m128 t = _mm_loadu_ps(lifetimes);
 
         vx = _mm_add_ps(vx, _mm_mul_ps(ax, dt_v));
         px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
@@ -231,12 +229,12 @@ UDB_acceleration_y_sse2(DataBlock *block, float dt)
     int i;
 
     for (i = 0; i < n_iters_4; i++) {
-        __m128 ay = _mm_loadu_ps(accelerations_y, load_mask);
-        __m128 vx = _mm_loadu_ps(velocities_x, load_mask);
-        __m128 vy = _mm_loadu_ps(velocities_y, load_mask);
-        __m128 px = _mm_loadu_ps(positions_x, load_mask);
-        __m128 py = _mm_loadu_ps(positions_y, load_mask);
-        __m128 t = _mm_loadu_ps(lifetimes, load_mask);
+        __m128 ay = _mm_loadu_ps(accelerations_y);
+        __m128 vx = _mm_loadu_ps(velocities_x);
+        __m128 vy = _mm_loadu_ps(velocities_y);
+        __m128 px = _mm_loadu_ps(positions_x);
+        __m128 py = _mm_loadu_ps(positions_y);
+        __m128 t = _mm_loadu_ps(lifetimes);
 
         vy = _mm_add_ps(vy, _mm_mul_ps(ay, dt_v));
         px = _mm_add_ps(px, _mm_mul_ps(vx, dt_v));
