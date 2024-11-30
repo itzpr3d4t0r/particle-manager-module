@@ -22,9 +22,8 @@ typedef struct {
     int emission_number;     /* number of particles to emit */
 
     /* Core particle settings */
-    PyObject ***animations; /* used for animation pooling */
-    int animations_count;   /* number of animations */
-    int *num_frames;        /* number of frames for each animation */
+    PyObject *animation;   /* particle animation tuple */
+    int num_frames;        /* animation frames number */
 
     generator lifetime;
     generator speed_x;
@@ -58,10 +57,4 @@ PyObject *
 emitter_str(EmitterObject *self);
 
 void
-_emitter_free(Emitter *emitter);
-
-void
 emitter_dealloc(EmitterObject *self);
-
-int
-emitter_allocate_and_copy_animations(Emitter *from, Emitter *to);

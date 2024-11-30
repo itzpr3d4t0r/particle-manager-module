@@ -12,28 +12,14 @@ def rand_between(low, high):
     return low + random() * (high - low)
 
 
-imgs = [
-    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
-    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
-    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
-    [pygame.Surface((s, s)) for s in range(10, 1, -1)],
-]
+color = (randint(0, 255), randint(0, 255), randint(0, 255))
+imgs = tuple(pygame.Surface((s, s)) for s in range(5, 0, -1))
+for img in imgs:
+    img.fill(color)
 
-for seq, color in zip(
-    imgs,
-    [
-        "white",
-        "red",
-        "green",
-        "blue",
-    ],
-):
-    for i, img in enumerate(seq):
-        img.fill(color)
-
-PARTICLE_NUM = 30000
 PARTICLE_NUM_ON_CLICK = 10000
 idx = 0
+BLEND_MODE = pygame.BLEND_ADD
 
 PM = ParticleManager()
 particles = []
@@ -41,14 +27,14 @@ particles = []
 emitter = Emitter(
     emit_shape=EMIT_POINT,
     emit_number=PARTICLE_NUM_ON_CLICK,
-    images=imgs,
+    animation=imgs,
     particle_lifetime=(60, 180),
     speed_x=(-2, 2),
     speed_y=(-2, 2),
-    blend_mode=pygame.BLEND_ADD,
+    blend_mode=BLEND_MODE,
 )
 
-effect = ParticleEffect([emitter])
+effect = ParticleEffect((emitter,))
 
 screen = pygame.display.set_mode((1000, 1000))
 
@@ -60,7 +46,6 @@ pm_mode_txt = font.render(
     "Using: ParticleManager (press 1 to change mode)", True, "green"
 )
 list_mode_txt = font.render("Using: List (press 1 to change mode)", True, "green")
-click_to_spawn = font.render("Click any mouse button to spawn particles", True, "white")
 fps_text = font.render("fps: 0", True, "red")
 
 t = 0
@@ -77,7 +62,7 @@ while True:
     else:
         particles = [p for p in particles if p.update(dt)]
         screen.fblits(
-            [(p.images[int(p.time)], (p.x, p.y)) for p in particles], pygame.BLEND_ADD
+            [(p.images[int(p.time)], (p.x, p.y)) for p in particles], BLEND_MODE
         )
 
     t += dt
@@ -99,8 +84,8 @@ while True:
                         500,
                         rand_between(-1, 1),
                         rand_between(-1, 1),
-                        update_speed=rand_between(0.025, 0.028),
-                        imgs=imgs[randint(0, len(imgs) - 1)],
+                        update_speed=rand_between(0.02, 0.04),
+                        imgs=imgs,
                     )
                     for _ in range(PARTICLE_NUM_ON_CLICK)
                 ]
@@ -114,7 +99,6 @@ while True:
         (0, 30),
     )
     screen.blit(pm_mode_txt if use_pm else list_mode_txt, (0, 55))
-    screen.blit(click_to_spawn, (0, 80))
 
     pygame.display.flip()
 

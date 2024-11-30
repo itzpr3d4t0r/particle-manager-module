@@ -5,12 +5,6 @@ import pygame
 Coord = Union[Sequence[float], Sequence[int]]
 FloatOrRange = Union[float, Sequence[float]]
 
-AcceptableImageSequences = Union[
-    pygame.Surface,  # particles all have the same one surface
-    Sequence[pygame.Surface],  # particles all share the same animation
-    Sequence[Sequence[pygame.Surface]],  # particles all have a random animation
-]
-
 EMIT_POINT: int = 0
 
 class Emitter:
@@ -23,7 +17,7 @@ class Emitter:
         looping: bool = False,
         emit_interval: float = 0,
         emit_time: float = 0,
-        images: AcceptableImageSequences = None,
+        animation: Tuple[pygame.Surface, ...] = None,
         particle_lifetime: FloatOrRange = 60,
         speed_x: FloatOrRange = 0,
         speed_y: FloatOrRange = 0,
@@ -36,7 +30,7 @@ class Emitter:
     ) -> None: ...
 
 class ParticleEffect:
-    def __init__(self, emitters: List[Emitter]) -> None: ...
+    def __init__(self, emitters: Tuple[Emitter]) -> None: ...
 
 class ParticleManager:
     @property

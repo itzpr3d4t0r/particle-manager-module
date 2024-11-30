@@ -12,17 +12,17 @@ typedef struct {
     int blocks_count;       /* number of data blocks */
     vec2 position;          /* position of the effect */
     bool ended;             /* if the effect has ended */
-} EffectDataBlock;
+} EffectInstance;
 
 int
-init_effect_data_block(EffectDataBlock *block, ParticleEffect *effect,
-                       vec2 position);
+init_effect_instance(EffectInstance *instance, ParticleEffect *effect,
+                     vec2 position);
 
 void
-update_effect_data_block(EffectDataBlock *block, float dt);
+update_effect_instance(EffectInstance *instance, float dt);
 
 int
-draw_effect_data_block(EffectDataBlock *block, pgSurfaceObject *dest);
+draw_effect_instance(EffectInstance *instance, pgSurfaceObject *dest);
 
 void
-dealloc_effect_data_block(EffectDataBlock *g);
+dealloc_effect_instance(EffectInstance *g);

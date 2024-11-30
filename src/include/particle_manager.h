@@ -1,16 +1,16 @@
 #pragma once
 
 #include "particle_effect.h"
-#include "effect_data_block.h"
+#include "effect_instance.h"
 #include "MT19937.h"
 #include <math.h>
 
 #define PM_BASE_BLOCK_SIZE 10
 
 typedef struct {
-    PyObject_HEAD EffectDataBlock *blocks;
-    Py_ssize_t allocated_blocks;
-    Py_ssize_t used_blocks;
+    PyObject_HEAD EffectInstance *instances;
+    Py_ssize_t allocated_instances;
+    Py_ssize_t used_instances;
 } ParticleManager;
 
 PyObject *
@@ -22,7 +22,7 @@ pm_dealloc(ParticleManager *self);
 /* =======================| INTERNAL FUNCTIONALITY |======================= */
 
 int
-_pm_spawn_effect_helper(EffectDataBlock *block, PyObject *const *args,
+_pm_spawn_effect_helper(EffectInstance *instance, PyObject *const *args,
                         Py_ssize_t nargs);
 
 /* ======================================================================== */

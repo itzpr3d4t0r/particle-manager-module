@@ -173,7 +173,7 @@ src_files = [
     'src/updaters_simd_avx2.c',
     'src/updaters_simd_sse2.c',
     'src/data_block.c',
-    'src/effect_data_block.c',
+    'src/effect_instance.c',
     'src/float_array.c',
     'src/particle_manager.c',
     'src/emitter.c',

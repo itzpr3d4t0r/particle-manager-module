@@ -14,9 +14,8 @@ typedef struct DataBlock {
     float_array lifetimes;
     float_array max_lifetimes;
 
-    int *animation_indices;
-    int *num_frames;
-    PyObject ***animations;
+    int num_frames;
+    PyObject *animation;
 
     int blend_mode;
     bool ended;

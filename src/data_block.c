@@ -1,5 +1,6 @@
 #include "include/data_block.h"
 #include <search.h>
+#include <math.h>
 #include "include/simd_common.h"
 
 int
@@ -138,21 +139,6 @@ find_first_leq_zero(const float *restrict arr, int size)
     }
 
     return result;
-}
-
-int
-alloc_and_init_animation_indices(DataBlock *block, Emitter *emitter)
-{
-    block->animation_indices = PyMem_New(int, emitter->emission_number);
-    if (!block->animation_indices)
-        return 0;
-
-    int *restrict animation_indices = block->animation_indices;
-
-    for (int i = 0; i < emitter->emission_number; i++)
-        animation_indices[i] = rand_int_between(0, emitter->animations_count - 1);
-
-    return 1;
 }
 
 void
@@ -308,7 +294,8 @@ int
 init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
 {
     block->particles_count = emitter->emission_number;
-    block->animations = emitter->animations;
+    Py_INCREF(emitter->animation);
+    block->animation = emitter->animation;
     block->num_frames = emitter->num_frames;
     block->blend_mode = emitter->blend_mode;
     block->ended = false;
@@ -317,8 +304,7 @@ init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
     if (!alloc_and_init_positions(block, emitter, position) ||
         !alloc_and_init_velocities(block, emitter) ||
         !alloc_and_init_accelerations(block, emitter) ||
-        !alloc_and_init_lifetimes(block, emitter) ||
-        !alloc_and_init_animation_indices(block, emitter))
+        !alloc_and_init_lifetimes(block, emitter))
         return 0;
 
     choose_and_set_update_function(block, emitter);
@@ -336,21 +322,19 @@ int
 draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
 {
     pgSurfaceObject *src_obj;
-    float const *restrict positions_x = block->positions_x.data;
-    float const *restrict positions_y = block->positions_y.data;
-    float const *restrict lifetimes = block->lifetimes.data;
-    float const *restrict max_lifetimes = block->max_lifetimes.data;
-    int const *restrict animation_indices = block->animation_indices;
-    int const *restrict num_frames = block->num_frames;
-    PyObject const ***animations = block->animations;
+    float const *positions_x = block->positions_x.data;
+    float const *positions_y = block->positions_y.data;
+    float const *lifetimes = block->lifetimes.data;
+    float const *max_lifetimes = block->max_lifetimes.data;
+    const int num_frames = block->num_frames;
+    PyObject **animation = PySequence_Fast_ITEMS(block->animation);
 
     for (int i = 0; i < block->particles_count; i++) {
-        const int animation_index = animation_indices[i];
-        const int max_ix = num_frames[animation_index];
-        int img_ix = (int)((1 - lifetimes[i] / max_lifetimes[i]) * max_ix);
-        img_ix = MAX(0, MIN(img_ix, max_ix - 1));
 
-        src_obj = (pgSurfaceObject *)(animations[animation_index][img_ix]);
+        int img_ix = (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * num_frames);
+        img_ix = clamp_int(img_ix, 0, num_frames - 1);
+
+        src_obj = (pgSurfaceObject *)animation[img_ix];
         if (!src_obj) {
             PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
             return 0;
@@ -371,6 +355,7 @@ draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
 void
 dealloc_data_block(DataBlock *block)
 {
+    Py_DECREF(block->animation);
     float_array_free(&block->positions_x);
     float_array_free(&block->positions_y);
     float_array_free(&block->velocities_x);
@@ -379,5 +364,4 @@ dealloc_data_block(DataBlock *block)
     float_array_free(&block->accelerations_y);
     float_array_free(&block->lifetimes);
     float_array_free(&block->max_lifetimes);
-    PyMem_Free(block->animation_indices);
 }

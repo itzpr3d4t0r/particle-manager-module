@@ -3,7 +3,7 @@
 #include "emitter.h"
 
 typedef struct {
-    Emitter *emitters;  /* emitter array */
+    PyObject *emitters;  /* emitters tuple */
     int emitters_count; /* number of emitters */
 } ParticleEffect;
 
