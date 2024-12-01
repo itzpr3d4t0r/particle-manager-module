@@ -13,6 +13,7 @@ typedef struct DataBlock {
     float_array accelerations_y;
     float_array lifetimes;
     float_array max_lifetimes;
+    int *animation_indices;
 
     int num_frames;
     PyObject *animation;
@@ -35,6 +36,12 @@ UDB_acceleration_y(DataBlock *block, float dt);
 
 void
 UDB_all(DataBlock *block, float dt);
+
+void
+update_indices_scalar(DataBlock *block);
+
+void
+update_indices(DataBlock *block);
 
 int
 init_data_block(DataBlock *block, Emitter *emitter, vec2 position);

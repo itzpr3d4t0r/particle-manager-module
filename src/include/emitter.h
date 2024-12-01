@@ -22,8 +22,8 @@ typedef struct {
     int emission_number;     /* number of particles to emit */
 
     /* Core particle settings */
-    PyObject *animation;   /* particle animation tuple */
-    int num_frames;        /* animation frames number */
+    PyObject *animation; /* particle animation tuple */
+    int num_frames;      /* animation frames number */
 
     generator lifetime;
     generator speed_x;

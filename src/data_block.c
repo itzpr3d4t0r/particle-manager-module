@@ -121,6 +121,14 @@ alloc_and_init_lifetimes(DataBlock *block, Emitter *emitter)
 }
 
 int
+alloc_and_init_animation_indices(DataBlock *block, Emitter *emitter)
+{
+    block->animation_indices = PyMem_New(int, emitter->emission_number);
+
+    return block->animation_indices != NULL;
+}
+
+int
 find_first_leq_zero(const float *restrict arr, int size)
 {
     int low = 0;
@@ -148,16 +156,13 @@ recalculate_particle_count(DataBlock *block)
     int index = find_first_leq_zero(block->lifetimes.data, block->particles_count);
 
     /* If all particles are alive the index will be -1, so just return */
-    if (index == -1 && block->particles_count == block->lifetimes.capacity)
+    if (index == -1)
         return;
 
-    if (index == 0) {
-        block->particles_count = 0;
+    block->particles_count = index;
+
+    if (!index)
         block->ended = true;
-        return;
-    }
-
-    block->particles_count = index + 1;
 }
 
 void
@@ -165,30 +170,34 @@ UDB_no_acceleration(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
+    float *restrict lifetimes = block->lifetimes.data;
     float const *restrict velocities_x = block->velocities_x.data;
     float const *restrict velocities_y = block->velocities_y.data;
-    float *restrict lifetimes = block->lifetimes.data;
+    float const *restrict max_lifetimes = block->max_lifetimes.data;
+    int *restrict indices = block->animation_indices;
 
     for (int i = 0; i < block->particles_count; i++) {
         positions_x[i] += velocities_x[i] * dt;
         positions_y[i] += velocities_y[i] * dt;
 
         lifetimes[i] -= dt;
+        indices[i] =
+            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
     }
-
-    recalculate_particle_count(block);
 }
 
 void
 UDB_all(DataBlock *block, float dt)
 {
-    float *positions_x = block->positions_x.data;
-    float *positions_y = block->positions_y.data;
-    float *velocities_x = block->velocities_x.data;
-    float *velocities_y = block->velocities_y.data;
-    float const *accelerations_x = block->accelerations_x.data;
-    float const *accelerations_y = block->accelerations_y.data;
+    float *restrict positions_x = block->positions_x.data;
+    float *restrict positions_y = block->positions_y.data;
+    float *restrict velocities_x = block->velocities_x.data;
+    float *restrict velocities_y = block->velocities_y.data;
     float *restrict lifetimes = block->lifetimes.data;
+    float const *restrict accelerations_x = block->accelerations_x.data;
+    float const *restrict accelerations_y = block->accelerations_y.data;
+    float const *restrict max_lifetimes = block->max_lifetimes.data;
+    int *restrict indices = block->animation_indices;
 
     for (int i = 0; i < block->particles_count; i++) {
         velocities_x[i] += accelerations_x[i] * dt;
@@ -197,9 +206,9 @@ UDB_all(DataBlock *block, float dt)
         positions_y[i] += velocities_y[i] * dt;
 
         lifetimes[i] -= dt;
+        indices[i] =
+            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
     }
-
-    recalculate_particle_count(block);
 }
 
 void
@@ -210,7 +219,9 @@ UDB_acceleration_x(DataBlock *block, float dt)
     float *restrict velocities_x = block->velocities_x.data;
     float const *restrict velocities_y = block->velocities_y.data;
     float const *restrict accelerations_x = block->accelerations_x.data;
+    float const *restrict max_lifetimes = block->max_lifetimes.data;
     float *restrict lifetimes = block->lifetimes.data;
+    int *restrict indices = block->animation_indices;
 
     for (int i = 0; i < block->particles_count; i++) {
         velocities_x[i] += accelerations_x[i] * dt;
@@ -218,9 +229,9 @@ UDB_acceleration_x(DataBlock *block, float dt)
         positions_y[i] += velocities_y[i] * dt;
 
         lifetimes[i] -= dt;
+        indices[i] =
+            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
     }
-
-    recalculate_particle_count(block);
 }
 
 void
@@ -228,10 +239,12 @@ UDB_acceleration_y(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
-    float const *restrict velocities_x = block->velocities_x.data;
     float *restrict velocities_y = block->velocities_y.data;
-    float const *restrict accelerations_y = block->accelerations_y.data;
     float *restrict lifetimes = block->lifetimes.data;
+    float const *restrict max_lifetimes = block->max_lifetimes.data;
+    float const *restrict velocities_x = block->velocities_x.data;
+    float const *restrict accelerations_y = block->accelerations_y.data;
+    int *restrict indices = block->animation_indices;
 
     for (int i = 0; i < block->particles_count; i++) {
         velocities_y[i] += accelerations_y[i] * dt;
@@ -239,9 +252,9 @@ UDB_acceleration_y(DataBlock *block, float dt)
         positions_y[i] += velocities_y[i] * dt;
 
         lifetimes[i] -= dt;
+        indices[i] =
+            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
     }
-
-    recalculate_particle_count(block);
 }
 
 void
@@ -304,7 +317,8 @@ init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
     if (!alloc_and_init_positions(block, emitter, position) ||
         !alloc_and_init_velocities(block, emitter) ||
         !alloc_and_init_accelerations(block, emitter) ||
-        !alloc_and_init_lifetimes(block, emitter))
+        !alloc_and_init_lifetimes(block, emitter) ||
+        !alloc_and_init_animation_indices(block, emitter))
         return 0;
 
     choose_and_set_update_function(block, emitter);
@@ -313,9 +327,45 @@ init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
 }
 
 void
+update_indices_scalar(DataBlock *block)
+{
+    float const *restrict lifetimes = block->lifetimes.data;
+    float const *restrict max_lifetimes = block->max_lifetimes.data;
+    int *restrict indices = block->animation_indices;
+
+    for (int i = 0; i < block->particles_count; i++)
+        indices[i] =
+            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
+}
+
+void
+update_indices(DataBlock *block)
+{
+#if !defined(__EMSCRIPTEN__)
+    if (_Has_AVX2()) {
+        update_indices_avx2(block);
+        return;
+    }
+
+#if ENABLE_SSE_NEON
+    if (_HasSSE_NEON()) {
+        update_indices_sse2(block);
+        return;
+    }
+#endif /* ENABLE_SSE_NEON */
+#endif /* __EMSCRIPTEN__ */
+
+    update_indices_scalar(block);
+}
+
+void
 update_data_block(DataBlock *block, float dt)
 {
     block->updater(block, dt);
+
+    recalculate_particle_count(block);
+
+    update_indices(block);
 }
 
 int
@@ -324,17 +374,13 @@ draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
     pgSurfaceObject *src_obj;
     float const *positions_x = block->positions_x.data;
     float const *positions_y = block->positions_y.data;
-    float const *lifetimes = block->lifetimes.data;
-    float const *max_lifetimes = block->max_lifetimes.data;
-    const int num_frames = block->num_frames;
     PyObject **animation = PySequence_Fast_ITEMS(block->animation);
+    int const *indices = block->animation_indices;
+    const int max_ix = block->num_frames - 1;
 
     for (int i = 0; i < block->particles_count; i++) {
-
-        int img_ix = (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * num_frames);
-        img_ix = clamp_int(img_ix, 0, num_frames - 1);
-
-        src_obj = (pgSurfaceObject *)animation[img_ix];
+        const int index = clamp_int(indices[i], 0, max_ix);
+        src_obj = (pgSurfaceObject *)animation[index];
         if (!src_obj) {
             PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
             return 0;
@@ -364,4 +410,5 @@ dealloc_data_block(DataBlock *block)
     float_array_free(&block->accelerations_y);
     float_array_free(&block->lifetimes);
     float_array_free(&block->max_lifetimes);
+    PyMem_Free(block->animation_indices);
 }

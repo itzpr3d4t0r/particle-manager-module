@@ -102,8 +102,6 @@ UDB_all_avx2(DataBlock *block, float dt)
         _mm256_maskstore_ps(positions_y, load_mask, py);
         _mm256_maskstore_ps(lifetimes, load_mask, t);
     }
-
-    recalculate_particle_count(block);
 }
 #else
 void
@@ -173,8 +171,6 @@ UDB_no_acceleration_avx2(DataBlock *block, float dt)
         _mm256_maskstore_ps(positions_y, load_mask, py);
         _mm256_maskstore_ps(lifetimes, load_mask, t);
     }
-
-    recalculate_particle_count(block);
 }
 #else
 void
@@ -255,8 +251,6 @@ UDB_acceleration_x_avx2(DataBlock *block, float dt)
         _mm256_maskstore_ps(positions_y, load_mask, py);
         _mm256_maskstore_ps(lifetimes, load_mask, t);
     }
-
-    recalculate_particle_count(block);
 }
 #else
 void
@@ -337,12 +331,61 @@ UDB_acceleration_y_avx2(DataBlock *block, float dt)
         _mm256_maskstore_ps(positions_y, load_mask, py);
         _mm256_maskstore_ps(lifetimes, load_mask, t);
     }
-
-    recalculate_particle_count(block);
 }
 #else
 void
 UDB_acceleration_y_avx2(DataBlock *block, float dt)
+{
+    BAD_AVX2_FUNCTION_CALL
+}
+#endif /* defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
+          \ !defined(SDL_DISABLE_IMMINTRIN_H) */
+
+#if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
+    !defined(SDL_DISABLE_IMMINTRIN_H)
+void
+update_indices_avx2(DataBlock *block)
+{
+    float *restrict lifetimes = block->lifetimes.data;
+    float *restrict max_lifetimes = block->max_lifetimes.data;
+    __m256i *indices = (__m256i *)block->animation_indices;
+
+    const int n_iters_8 = block->particles_count / 8;
+    const int n_excess = block->particles_count % 8;
+    const __m256 one_v = _mm256_set1_ps(1.0f);
+    const __m256 num_frames_v = _mm256_set1_ps((float)(block->num_frames));
+    const __m256i load_mask = _mm256_set_epi32(
+        0, n_excess > 6 ? -1 : 0, n_excess > 5 ? -1 : 0, n_excess > 4 ? -1 : 0,
+        n_excess > 3 ? -1 : 0, n_excess > 2 ? -1 : 0, n_excess > 1 ? -1 : 0,
+        n_excess > 0 ? -1 : 0);
+
+    for (int i = 0; i < n_iters_8; i++) {
+        __m256 t = _mm256_loadu_ps(lifetimes);
+        __m256 max_t = _mm256_loadu_ps(max_lifetimes);
+
+        __m256i idx = _mm256_cvttps_epi32(_mm256_mul_ps(
+            _mm256_sub_ps(one_v, _mm256_div_ps(t, max_t)), num_frames_v));
+
+        _mm256_storeu_si256((__m256i *)indices, idx);
+
+        lifetimes += 8;
+        max_lifetimes += 8;
+        indices++;
+    }
+
+    if (n_excess) {
+        __m256 t = _mm256_maskload_ps(lifetimes, load_mask);
+        __m256 max_t = _mm256_maskload_ps(max_lifetimes, load_mask);
+
+        __m256i idx = _mm256_cvttps_epi32(_mm256_mul_ps(
+            _mm256_sub_ps(one_v, _mm256_div_ps(t, max_t)), num_frames_v));
+
+        _mm256_maskstore_epi32((int *)indices, load_mask, idx);
+    }
+}
+#else
+void
+update_indices_avx2(DataBlock *block)
 {
     BAD_AVX2_FUNCTION_CALL
 }

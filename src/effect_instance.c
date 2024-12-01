@@ -1,7 +1,8 @@
 #include "include/effect_instance.h"
 
 int
-init_effect_instance(EffectInstance *instance, ParticleEffect *effect, vec2 position) {
+init_effect_instance(EffectInstance *instance, ParticleEffect *effect, vec2 position)
+{
     instance->position = position;
     instance->blocks_count = effect->emitters_count;
     instance->ended = false;
@@ -17,7 +18,7 @@ init_effect_instance(EffectInstance *instance, ParticleEffect *effect, vec2 posi
 
     /* Initialize each data block, one per emitter */
     for (Py_ssize_t i = 0; i < effect->emitters_count; i++) {
-        Emitter *emitter = &((EmitterObject *) emitter_objs[i])->emitter;
+        Emitter *emitter = &((EmitterObject *)emitter_objs[i])->emitter;
         DataBlock *db = &instance->p_data[i];
         if (!init_data_block(db, emitter, position))
             return 0;
@@ -27,7 +28,8 @@ init_effect_instance(EffectInstance *instance, ParticleEffect *effect, vec2 posi
 }
 
 void
-update_effect_instance(EffectInstance *instance, float dt) {
+update_effect_instance(EffectInstance *instance, float dt)
+{
     int active_blocks = 0;
 
     for (Py_ssize_t i = 0; i < instance->blocks_count; i++) {
@@ -45,16 +47,19 @@ update_effect_instance(EffectInstance *instance, float dt) {
 }
 
 int
-draw_effect_instance(EffectInstance *instance, pgSurfaceObject *dest) {
+draw_effect_instance(EffectInstance *instance, pgSurfaceObject *dest)
+{
     for (Py_ssize_t i = 0; i < instance->blocks_count; i++)
-        if (!draw_data_block(&instance->p_data[i], dest, instance->p_data[i].blend_mode))
+        if (!draw_data_block(&instance->p_data[i], dest,
+                             instance->p_data[i].blend_mode))
             return 0;
 
     return 1;
 }
 
 void
-dealloc_effect_instance(EffectInstance *instance) {
+dealloc_effect_instance(EffectInstance *instance)
+{
     for (Py_ssize_t i = 0; i < instance->blocks_count; i++)
         dealloc_data_block(&instance->p_data[i]);
 

@@ -40,8 +40,7 @@ static PyMethodDef ParticleManagerMethods[] = {
 
 static PyGetSetDef ParticleManagerAttributes[] = {
     {"num_particles", (getter)pm_get_num_particles, NULL, NULL, NULL},
-    {NULL, 0, NULL, NULL, NULL}
-};
+    {NULL, 0, NULL, NULL, NULL}};
 
 static PyTypeObject ParticleManagerType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "particle_manager.ParticleManager",

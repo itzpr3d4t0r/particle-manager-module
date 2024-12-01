@@ -114,6 +114,11 @@ pm_draw(ParticleManager *self, PyObject *arg) {
     pgSurfaceObject *dest = (pgSurfaceObject *) arg;
     SURF_INIT_CHECK((&dest->surf));
 
+    if (dest->subsurface) {
+        PyErr_SetString(PyExc_RuntimeError, "Cannot draw on a subsurface");
+        return NULL;
+    }
+
     for (Py_ssize_t i = 0; i < self->used_instances; i++)
         if (!draw_effect_instance(&self->instances[i], dest))
             return NULL;

@@ -1,7 +1,8 @@
 #include "include/particle_effect.h"
 
 int
-particle_effect_init(ParticleEffectObject *self, PyObject *args, PyObject *kwds) {
+particle_effect_init(ParticleEffectObject *self, PyObject *args, PyObject *kwds)
+{
     static char *kwlist[] = {"emitters", NULL};
     PyObject *emitters = NULL;
 
@@ -27,7 +28,8 @@ particle_effect_init(ParticleEffectObject *self, PyObject *args, PyObject *kwds)
 
     for (Py_ssize_t i = 0; i < size; i++) {
         if (!Emitter_Check(items[i])) {
-            PyErr_SetString(PyExc_TypeError, "Invalid emitter, must be an Emitter instance");
+            PyErr_SetString(PyExc_TypeError,
+                            "Invalid emitter, must be an Emitter instance");
             return -1;
         }
     }
@@ -36,14 +38,16 @@ particle_effect_init(ParticleEffectObject *self, PyObject *args, PyObject *kwds)
 }
 
 void
-particle_effect_dealloc(ParticleEffectObject *self) {
+particle_effect_dealloc(ParticleEffectObject *self)
+{
     Py_XDECREF(self->effect.emitters);
 
-    Py_TYPE(self)->tp_free((PyObject *) self);
+    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 PyObject *
-particle_effect_str(ParticleEffectObject *self) {
+particle_effect_str(ParticleEffectObject *self)
+{
     return PyUnicode_FromFormat("ParticleEffect(emitters=%d)",
                                 self->effect.emitters_count);
 }

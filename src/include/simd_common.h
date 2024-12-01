@@ -35,6 +35,9 @@ UDB_acceleration_x_avx2(DataBlock *block, float dt);
 void
 UDB_acceleration_y_avx2(DataBlock *block, float dt);
 
+void
+update_indices_avx2(DataBlock *block);
+
 /* =============| SSE2 |============= */
 
 void
@@ -49,3 +52,5 @@ UDB_acceleration_x_sse2(DataBlock *block, float dt);
 void
 UDB_acceleration_y_sse2(DataBlock *block, float dt);
 
+void
+update_indices_sse2(DataBlock *block);
