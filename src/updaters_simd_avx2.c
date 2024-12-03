@@ -366,7 +366,7 @@ update_indices_avx2(DataBlock *block)
         __m256i idx = _mm256_cvttps_epi32(_mm256_mul_ps(
             _mm256_sub_ps(one_v, _mm256_div_ps(t, max_t)), num_frames_v));
 
-        _mm256_storeu_si256((__m256i *)indices, idx);
+        _mm256_storeu_si256(indices, idx);
 
         lifetimes += 8;
         max_lifetimes += 8;
@@ -394,6 +394,148 @@ update_indices_avx2(DataBlock *block)
 
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
+void inline blit_add_avx2_1x1(uint32_t *srcp32, uint32_t *dstp32)
+{
+    __m128i src128 = _mm_cvtsi32_si128(*srcp32);
+    __m128i dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+}
+
+void inline blit_add_avx2_2x2(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    __m128i dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+
+    srcp32 += 2 + src_skip;
+    dstp32 += 2 + dst_skip;
+
+    src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+}
+
+void inline blit_add_avx2_3x3(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    __m128i dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+
+    srcp32 += 2;
+    dstp32 += 2;
+
+    src128 = _mm_cvtsi32_si128(*srcp32);
+    dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+
+    srcp32 += 1 + src_skip;
+    dstp32 += 1 + dst_skip;
+
+    src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+
+    srcp32 += 2;
+    dstp32 += 2;
+
+    src128 = _mm_cvtsi32_si128(*srcp32);
+    dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+}
+
+void inline blit_add_avx2_4x4(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128;
+    __m128i dst128;
+    UNROLL_3({
+        src128 = _mm_loadu_si128((__m128i *)srcp32);
+        dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+        dst128 = _mm_adds_epu8(src128, dst128);
+
+        _mm_storeu_si128((__m128i *)dstp32, dst128);
+
+        srcp32 += 4 + src_skip;
+        dstp32 += 4 + dst_skip;
+    })
+
+    src128 = _mm_loadu_si128((__m128i *)srcp32);
+    dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storeu_si128((__m128i *)dstp32, dst128);
+}
+
+void inline blit_add_avx2_5x5(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128;
+    __m128i dst128;
+    UNROLL_4({
+        src128 = _mm_loadu_si128((__m128i *)srcp32);
+        dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+        dst128 = _mm_adds_epu8(src128, dst128);
+
+        _mm_storeu_si128((__m128i *)dstp32, dst128);
+
+        srcp32 += 4;
+        dstp32 += 4;
+
+        src128 = _mm_cvtsi32_si128(*srcp32);
+        dst128 = _mm_cvtsi32_si128(*dstp32);
+
+        dst128 = _mm_adds_epu8(src128, dst128);
+
+        *dstp32 = _mm_cvtsi128_si32(dst128);
+
+        srcp32 += 1 + src_skip;
+        dstp32 += 1 + dst_skip;
+    })
+
+    src128 = _mm_loadu_si128((__m128i *)srcp32);
+    dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storeu_si128((__m128i *)dstp32, dst128);
+
+    srcp32 += 4;
+    dstp32 += 4;
+
+    src128 = _mm_cvtsi32_si128(*srcp32);
+    dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+}
+
 void
 blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
                         int dst_skip)
@@ -411,9 +553,30 @@ blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
 
         for (int j = 0; j < fragment->length; j++) {
             BlitDestination *item = &destinations[j];
-
             uint32_t *srcp32 = src_start;
             uint32_t *dstp32 = item->pixels;
+
+            if (item->width == 1 && item->rows == 1) {
+                blit_add_avx2_1x1(srcp32, dstp32);
+                continue;
+            }
+            else if (item->width == 2 && item->rows == 2) {
+                blit_add_avx2_2x2(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+            else if (item->width == 3 && item->rows == 3) {
+                blit_add_avx2_3x3(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+            else if (item->width == 4 && item->rows == 4) {
+                blit_add_avx2_4x4(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+            else if (item->width == 5 && item->rows == 5) {
+                blit_add_avx2_5x5(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+
             int h = item->rows;
 
             const int n_iters_8 = item->width / 8;

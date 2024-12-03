@@ -4,6 +4,21 @@
 #include "MT19937.h"
 #include "emitter.h"
 
+#define UNROLL_2(x) \
+    x;              \
+    x;
+
+#define UNROLL_3(x) \
+    x;              \
+    x;              \
+    x;
+
+#define UNROLL_4(x) \
+    x;              \
+    x;              \
+    x;              \
+    x;
+
 typedef struct {
     int animation_index;
     int length;

@@ -236,6 +236,78 @@ blit_fragments_blitcopy(FragmentationMap *frag_map, pgSurfaceObject *dest,
 
             uint32_t *srcp32 = src_start;
             uint32_t *dstp32 = item->pixels;
+
+            if (item->width == 1 && item->rows == 1) {
+                *dstp32 = *srcp32;
+                continue;
+            }
+            else if (item->width == 2 && item->rows == 2) {
+                dstp32[0] = srcp32[0];
+                dstp32[1] = srcp32[1];
+
+                srcp32 += src_skip;
+                dstp32 += dst_skip;
+
+                dstp32[0] = srcp32[0];
+                dstp32[1] = srcp32[1];
+
+                continue;
+            }
+            else if (item->width == 3 && item->rows == 3) {
+                UNROLL_2({
+                    dstp32[0] = srcp32[0];
+                    dstp32[1] = srcp32[1];
+                    dstp32[2] = srcp32[2];
+
+                    srcp32 += src_skip;
+                    dstp32 += dst_skip;
+                })
+
+                dstp32[0] = srcp32[0];
+                dstp32[1] = srcp32[1];
+                dstp32[2] = srcp32[2];
+
+                continue;
+            }
+            else if (item->width == 4 && item->rows == 4) {
+                UNROLL_3({
+                    dstp32[0] = srcp32[0];
+                    dstp32[1] = srcp32[1];
+                    dstp32[2] = srcp32[2];
+                    dstp32[3] = srcp32[3];
+
+                    srcp32 += src_skip;
+                    dstp32 += dst_skip;
+                })
+
+                dstp32[0] = srcp32[0];
+                dstp32[1] = srcp32[1];
+                dstp32[2] = srcp32[2];
+                dstp32[3] = srcp32[3];
+
+                continue;
+            }
+            else if (item->width == 5 && item->rows == 5) {
+                UNROLL_4({
+                    dstp32[0] = srcp32[0];
+                    dstp32[1] = srcp32[1];
+                    dstp32[2] = srcp32[2];
+                    dstp32[3] = srcp32[3];
+                    dstp32[4] = srcp32[4];
+
+                    srcp32 += src_skip;
+                    dstp32 += dst_skip;
+                })
+
+                dstp32[0] = srcp32[0];
+                dstp32[1] = srcp32[1];
+                dstp32[2] = srcp32[2];
+                dstp32[3] = srcp32[3];
+                dstp32[4] = srcp32[4];
+
+                continue;
+            }
+
             int h = item->rows;
             const int copy_w = item->width * 4;
 
@@ -279,43 +351,54 @@ blit_fragments_add_scalar(FragmentationMap *frag_map, PyObject **animation,
 {
     Fragment *fragments = frag_map->fragments;
     BlitDestination *destinations = frag_map->destinations;
+    SDL_PixelFormat *fmt = ((pgSurfaceObject *)animation[0])->surf->format;
+
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+    const int Ridx = fmt->Rshift >> 3;
+    const int Gidx = fmt->Gshift >> 3;
+    const int Bidx = fmt->Bshift >> 3;
+#else
+    const int Ridx = 3 - (fmt->Rshift >> 3);
+    const int Gidx = 3 - (fmt->Gshift >> 3);
+    const int Bidx = 3 - (fmt->Bshift >> 3);
+#endif
 
     for (int i = 0; i < frag_map->used_f; i++) {
         Fragment *fragment = &fragments[i];
         SDL_Surface *src_surf =
             ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
-        const int src_skip = src_surf->pitch / 4;
-        uint32_t *const src_start = (uint32_t *)src_surf->pixels;
+        const int src_skip = src_surf->pitch - src_surf->w * 4;
+        uint8_t *const src_start = (uint8_t *)src_surf->pixels;
 
         for (int j = 0; j < fragment->length; j++) {
             BlitDestination *item = &destinations[j];
 
-            uint32_t *srcp32 = src_start;
-            uint32_t *dstp32 = item->pixels;
+            uint8_t *srcp8 = src_start;
+            uint8_t *dstp8 = (uint8_t *)item->pixels;
+
             int h = item->rows;
-            const int w = item->width;
+            const int actual_dst_skip = 4 * (dst_skip - item->width);
 
             while (h--) {
-                for (int k = 0; k < w; k++) {
-                    uint32_t src = srcp32[k];
-                    uint32_t dst = dstp32[k];
-                    uint32_t r = (src >> src_surf->format->Rshift) & 0xff;
-                    uint32_t g = (src >> src_surf->format->Gshift) & 0xff;
-                    uint32_t b = (src >> src_surf->format->Bshift) & 0xff;
+                for (int k = 0; k < item->width; k++) {
+                    uint8_t sr = srcp8[Ridx];
+                    uint8_t sg = srcp8[Gidx];
+                    uint8_t sb = srcp8[Bidx];
 
-                    uint32_t r2 = (dst >> src_surf->format->Rshift) & 0xff;
-                    uint32_t g2 = (dst >> src_surf->format->Gshift) & 0xff;
-                    uint32_t b2 = (dst >> src_surf->format->Bshift) & 0xff;
+                    uint8_t dr = dstp8[Ridx];
+                    uint8_t dg = dstp8[Gidx];
+                    uint8_t db = dstp8[Bidx];
 
-                    r = r + r2 > 255 ? 255 : r + r2;
-                    g = g + g2 > 255 ? 255 : g + g2;
-                    b = b + b2 > 255 ? 255 : b + b2;
+                    dstp8[Ridx] = sr + dr > 255 ? 255 : sr + dr;
+                    dstp8[Gidx] = sg + dg > 255 ? 255 : sg + dg;
+                    dstp8[Bidx] = sb + db > 255 ? 255 : sb + db;
 
-                    dstp32[k] = (b << 16) | (g << 8) | r | 0xff000000;
+                    srcp8 += 4;
+                    dstp8 += 4;
                 }
 
-                srcp32 += src_skip;
-                dstp32 += dst_skip;
+                srcp8 += src_skip;
+                dstp8 += actual_dst_skip;
             }
         }
 
