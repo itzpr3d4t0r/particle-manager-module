@@ -24,33 +24,41 @@ _HasSSE_NEON();
 /* =============| AVX2 |============= */
 
 void
-UDB_all_avx2(DataBlock *block, float dt);
+update_with_acceleration_avx2(DataBlock *block, float dt);
 
 void
-UDB_no_acceleration_avx2(DataBlock *block, float dt);
+update_with_no_acceleration_avx2(DataBlock *block, float dt);
 
 void
-UDB_acceleration_x_avx2(DataBlock *block, float dt);
+update_with_acceleration_x_avx2(DataBlock *block, float dt);
 
 void
-UDB_acceleration_y_avx2(DataBlock *block, float dt);
+update_with_acceleration_y_avx2(DataBlock *block, float dt);
 
 void
 update_indices_avx2(DataBlock *block);
 
+void
+blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
+                        int dst_skip);
+
 /* =============| SSE2 |============= */
 
 void
-UDB_all_sse2(DataBlock *block, float dt);
+update_with_acceleration_sse2(DataBlock *block, float dt);
 
 void
-UDB_no_acceleration_sse2(DataBlock *block, float dt);
+update_with_no_acceleration_sse2(DataBlock *block, float dt);
 
 void
-UDB_acceleration_x_sse2(DataBlock *block, float dt);
+update_with_acceleration_x_sse2(DataBlock *block, float dt);
 
 void
-UDB_acceleration_y_sse2(DataBlock *block, float dt);
+update_with_acceleration_y_sse2(DataBlock *block, float dt);
 
 void
 update_indices_sse2(DataBlock *block);
+
+void
+blit_fragments_add_sse2(FragmentationMap *frag_map, PyObject **animation,
+                        int dst_skip);

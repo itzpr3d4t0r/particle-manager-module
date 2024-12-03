@@ -32,7 +32,7 @@ class PyParticle:
         # self.acc_x += self.grav_x
         # self.acc_y += self.grav_y
         # self.vx += self.acc_x * dt
-        # self.vy += self.acc_y * dt
+        self.vy += self.acc_y * dt
         self.x += self.vx * dt
         self.y += self.vy * dt
 

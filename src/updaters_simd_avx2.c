@@ -27,7 +27,7 @@ _Has_AVX2()
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_all_avx2(DataBlock *block, float dt)
+update_with_acceleration_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -105,7 +105,7 @@ UDB_all_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_all_avx2(DataBlock *block, float dt)
+update_with_acceleration_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -115,7 +115,7 @@ UDB_all_avx2(DataBlock *block, float dt)
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_no_acceleration_avx2(DataBlock *block, float dt)
+update_with_no_acceleration_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -174,7 +174,7 @@ UDB_no_acceleration_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_no_acceleration_avx2(DataBlock *block, float dt)
+update_with_no_acceleration_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -184,7 +184,7 @@ UDB_no_acceleration_avx2(DataBlock *block, float dt)
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_acceleration_x_avx2(DataBlock *block, float dt)
+update_with_acceleration_x_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -254,7 +254,7 @@ UDB_acceleration_x_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_acceleration_x_avx2(DataBlock *block, float dt)
+update_with_acceleration_x_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -264,7 +264,7 @@ UDB_acceleration_x_avx2(DataBlock *block, float dt)
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_acceleration_y_avx2(DataBlock *block, float dt)
+update_with_acceleration_y_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -334,7 +334,7 @@ UDB_acceleration_y_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_acceleration_y_avx2(DataBlock *block, float dt)
+update_with_acceleration_y_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -386,6 +386,76 @@ update_indices_avx2(DataBlock *block)
 #else
 void
 update_indices_avx2(DataBlock *block)
+{
+    BAD_AVX2_FUNCTION_CALL
+}
+#endif /* defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
+          \ !defined(SDL_DISABLE_IMMINTRIN_H) */
+
+#if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
+    !defined(SDL_DISABLE_IMMINTRIN_H)
+void
+blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
+                        int dst_skip)
+{
+    Fragment *fragments = frag_map->fragments;
+    BlitDestination *destinations = frag_map->destinations;
+
+    for (int i = 0; i < frag_map->used_f; i++) {
+        Fragment *fragment = &fragments[i];
+        SDL_Surface *src_surf =
+            ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
+        const int src_skip = src_surf->pitch / 4 - src_surf->w;
+        const int actual_dst_skip = dst_skip - src_surf->w;
+        uint32_t *const src_start = (uint32_t *)src_surf->pixels;
+
+        for (int j = 0; j < fragment->length; j++) {
+            BlitDestination *item = &destinations[j];
+
+            uint32_t *srcp32 = src_start;
+            uint32_t *dstp32 = item->pixels;
+            int h = item->rows;
+
+            const int n_iters_8 = item->width / 8;
+            const int pxl_excess = item->width % 8;
+
+            while (h--) {
+                for (int k = 0; k < n_iters_8; k++) {
+                    __m256i src256 = _mm256_loadu_si256((__m256i *)srcp32);
+                    __m256i dst256 = _mm256_loadu_si256((__m256i *)dstp32);
+
+                    dst256 = _mm256_adds_epu8(src256, dst256);
+
+                    _mm256_storeu_si256((__m256i *)dstp32, dst256);
+
+                    srcp32 += 8;
+                    dstp32 += 8;
+                }
+
+                for (int k = 0; k < pxl_excess; k++) {
+                    __m128i src128 = _mm_cvtsi32_si128(*srcp32);
+                    __m128i dst128 = _mm_cvtsi32_si128(*dstp32);
+
+                    dst128 = _mm_adds_epu8(src128, dst128);
+
+                    *dstp32 = _mm_cvtsi128_si32(dst128);
+
+                    srcp32++;
+                    dstp32++;
+                }
+
+                srcp32 += src_skip;
+                dstp32 += actual_dst_skip;
+            }
+        }
+
+        destinations += fragment->length;
+    }
+}
+#else
+void
+blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
+                        int dst_skip)
 {
     BAD_AVX2_FUNCTION_CALL
 }

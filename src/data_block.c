@@ -3,6 +3,398 @@
 #include <math.h>
 #include "include/simd_common.h"
 
+/* ====================| Public facing DataBlock functions |==================== */
+int
+init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
+{
+    block->particles_count = emitter->emission_number;
+    Py_INCREF(emitter->animation);
+    block->animation = emitter->animation;
+    block->num_frames = emitter->num_frames;
+    block->blend_mode = emitter->blend_mode;
+    block->ended = false;
+
+    /* Conditionally allocate memory for the arrays based on emitter properties */
+    if (!alloc_and_init_positions(block, emitter, position) ||
+        !alloc_and_init_velocities(block, emitter) ||
+        !alloc_and_init_accelerations(block, emitter) ||
+        !alloc_and_init_lifetimes(block, emitter) ||
+        !alloc_and_init_animation_indices(block, emitter) ||
+        !init_fragmentation_map(block))
+        return 0;
+
+    choose_and_set_update_function(block, emitter);
+
+    return 1;
+}
+
+void
+dealloc_data_block(DataBlock *block)
+{
+    Py_DECREF(block->animation);
+    float_array_free(&block->positions_x);
+    float_array_free(&block->positions_y);
+    float_array_free(&block->velocities_x);
+    float_array_free(&block->velocities_y);
+    float_array_free(&block->accelerations_x);
+    float_array_free(&block->accelerations_y);
+    float_array_free(&block->lifetimes);
+    float_array_free(&block->max_lifetimes);
+    PyMem_Free(block->animation_indices);
+    dealloc_fragmentation_map(&block->frag_map);
+}
+
+void
+choose_and_set_update_function(DataBlock *block, Emitter *emitter)
+{
+    const bool use_x_acc = emitter->acceleration_x.in_use;
+    const bool use_y_acc = emitter->acceleration_y.in_use;
+
+#if !defined(__EMSCRIPTEN__)
+    if (_Has_AVX2()) {
+        if (!use_x_acc && !use_y_acc)
+            block->updater = update_with_no_acceleration_avx2;
+        else if (use_x_acc && !use_y_acc)
+            block->updater = update_with_acceleration_x_avx2;
+        else if (!use_x_acc && use_y_acc)
+            block->updater = update_with_acceleration_y_avx2;
+        else
+            block->updater = update_with_acceleration_avx2;
+
+        return;
+    }
+
+#if ENABLE_SSE_NEON
+    if (_HasSSE_NEON()) {
+        if (!use_x_acc && !use_y_acc)
+            block->updater = update_with_no_acceleration_sse2;
+        else if (use_x_acc && !use_y_acc)
+            block->updater = update_with_acceleration_x_sse2;
+        else if (!use_x_acc && use_y_acc)
+            block->updater = update_with_acceleration_y_sse2;
+        else
+            block->updater = update_with_acceleration_sse2;
+
+        return;
+    }
+#endif /* ENABLE_SSE_NEON */
+#endif /* __EMSCRIPTEN__ */
+
+    if (!use_x_acc && !use_y_acc)
+        block->updater = update_with_no_acceleration;
+    else if (use_x_acc && !use_y_acc)
+        block->updater = update_with_acceleration_x;
+    else if (!use_x_acc && use_y_acc)
+        block->updater = update_with_acceleration_y;
+    else
+        block->updater = update_with_acceleration;
+}
+
+void
+update_data_block(DataBlock *block, float dt)
+{
+    block->updater(block, dt);
+
+    recalculate_particle_count(block);
+}
+
+int
+draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
+{
+    update_indices(block);
+
+    if (!calculate_fragmentation_map(dest, block))
+        return 0;
+
+    blit_fragments(dest, &block->frag_map, block, blend_flag);
+
+    return 1;
+}
+
+/* ====================| Internal DataBlock functions |==================== */
+
+int
+calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
+{
+    /* CALCULATE THE SURFACE INDEX OCCURRENCES */
+    block->frag_map.used_f = 0;
+
+    int const *indices = block->animation_indices;
+    int particle_count = block->particles_count;
+
+    int current_value = indices[0];
+    int current_count = 1;
+
+    FragmentationMap *frag_map = &block->frag_map;
+    Fragment *fragments = frag_map->fragments;
+
+    for (int i = 1; i < particle_count; ++i) {
+        if (indices[i] == current_value)
+            current_count++;
+        else {
+            Fragment *fragment = &fragments[frag_map->used_f++];
+            fragment->animation_index =
+                clamp_int(current_value, 0, block->num_frames - 1);
+            fragment->length = current_count;
+
+            current_value = indices[i];
+            current_count = 1;
+        }
+    }
+
+    if (current_count > 0) {
+        Fragment *fragment = &fragments[frag_map->used_f++];
+        fragment->animation_index =
+            clamp_int(current_value, 0, block->num_frames - 1);
+        fragment->length = current_count;
+    }
+
+    /* POPULATE THE DESTINATIONS ARRAY */
+
+    BlitDestination *destinations = frag_map->destinations;
+    float *positions_x = block->positions_x.data;
+    float *positions_y = block->positions_y.data;
+    PyObject **animation = PySequence_Fast_ITEMS(block->animation);
+    SDL_Surface *dest_surf = dest->surf;
+
+    const int dest_skip = dest_surf->pitch / 4;
+    uint32_t *dest_pixels = (uint32_t *)dest_surf->pixels;
+    const SDL_Rect *dest_clip = &dest_surf->clip_rect;
+    frag_map->dest_count = 0;
+
+    for (int i = 0; i < frag_map->used_f; i++) {
+        Fragment *frg = &fragments[i];
+        int length = frg->length;
+        const pgSurfaceObject *src_obj =
+            (pgSurfaceObject *)animation[frg->animation_index];
+        if (!src_obj) {
+            PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
+            return 0;
+        }
+
+        SDL_Surface const *src_surf = src_obj->surf;
+        SDL_Rect src_rect = {0, 0, src_surf->w, src_surf->h};
+
+        for (int j = 0; j < length; j++) {
+            src_rect.x = (int)positions_x[j];
+            src_rect.y = (int)positions_y[j];
+
+            SDL_Rect clipped;
+            if (!SDL_IntersectRect(&src_rect, dest_clip, &clipped)) {
+                frg->length--;
+                continue;
+            }
+
+            BlitDestination *destination = &destinations[frag_map->dest_count++];
+
+            destination->pixels = dest_pixels + clipped.y * dest_skip + clipped.x;
+            destination->width = clipped.w;
+            destination->rows = clipped.h;
+        }
+
+        positions_x += length;
+        positions_y += length;
+    }
+
+    return 1;
+}
+
+void
+blit_fragments(pgSurfaceObject *dest, FragmentationMap *frag_map, DataBlock *block,
+               int blend_flags)
+{
+    switch (blend_flags) {
+        case 0: /* blitcopy */
+            blit_fragments_blitcopy(frag_map, dest, block);
+            return;
+        case 1: /* add */
+            blit_fragments_add(frag_map, dest, block);
+            return;
+        default:
+            return;
+    }
+}
+
+void
+blit_fragments_blitcopy(FragmentationMap *frag_map, pgSurfaceObject *dest,
+                        DataBlock *block)
+{
+    PyObject **animation = PySequence_Fast_ITEMS(block->animation);
+    Fragment *fragments = frag_map->fragments;
+    BlitDestination *destinations = frag_map->destinations;
+    const int dst_skip = dest->surf->pitch / 4;
+
+    for (int i = 0; i < frag_map->used_f; i++) {
+        Fragment *fragment = &fragments[i];
+        SDL_Surface *src_surf =
+            ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
+        const int src_skip = src_surf->pitch / 4;
+        uint32_t *const src_start = (uint32_t *)src_surf->pixels;
+
+        for (int j = 0; j < fragment->length; j++) {
+            BlitDestination *item = &destinations[j];
+
+            uint32_t *srcp32 = src_start;
+            uint32_t *dstp32 = item->pixels;
+            int h = item->rows;
+            const int copy_w = item->width * 4;
+
+            while (h--) {
+                memcpy(dstp32, srcp32, copy_w);
+                srcp32 += src_skip;
+                dstp32 += dst_skip;
+            }
+        }
+
+        destinations += fragment->length;
+    }
+}
+
+void
+blit_fragments_add(FragmentationMap *frag_map, pgSurfaceObject *dest,
+                   DataBlock *block)
+{
+    PyObject **animation = PySequence_Fast_ITEMS(block->animation);
+    const int dst_skip = dest->surf->pitch / 4;
+
+#if !defined(__EMSCRIPTEN__)
+    if (_Has_AVX2()) {
+        blit_fragments_add_avx2(frag_map, animation, dst_skip);
+        return;
+    }
+#if ENABLE_SSE_NEON
+    if (_HasSSE_NEON()) {
+        blit_fragments_add_sse2(frag_map, animation, dst_skip);
+        return;
+    }
+#endif /* ENABLE_SSE_NEON */
+#endif /* __EMSCRIPTEN__ */
+
+    blit_fragments_add_scalar(frag_map, animation, dst_skip);
+}
+
+void
+blit_fragments_add_scalar(FragmentationMap *frag_map, PyObject **animation,
+                          int dst_skip)
+{
+    Fragment *fragments = frag_map->fragments;
+    BlitDestination *destinations = frag_map->destinations;
+
+    for (int i = 0; i < frag_map->used_f; i++) {
+        Fragment *fragment = &fragments[i];
+        SDL_Surface *src_surf =
+            ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
+        const int src_skip = src_surf->pitch / 4;
+        uint32_t *const src_start = (uint32_t *)src_surf->pixels;
+
+        for (int j = 0; j < fragment->length; j++) {
+            BlitDestination *item = &destinations[j];
+
+            uint32_t *srcp32 = src_start;
+            uint32_t *dstp32 = item->pixels;
+            int h = item->rows;
+            const int w = item->width;
+
+            while (h--) {
+                for (int k = 0; k < w; k++) {
+                    uint32_t src = srcp32[k];
+                    uint32_t dst = dstp32[k];
+                    uint32_t r = (src >> src_surf->format->Rshift) & 0xff;
+                    uint32_t g = (src >> src_surf->format->Gshift) & 0xff;
+                    uint32_t b = (src >> src_surf->format->Bshift) & 0xff;
+
+                    uint32_t r2 = (dst >> src_surf->format->Rshift) & 0xff;
+                    uint32_t g2 = (dst >> src_surf->format->Gshift) & 0xff;
+                    uint32_t b2 = (dst >> src_surf->format->Bshift) & 0xff;
+
+                    r = r + r2 > 255 ? 255 : r + r2;
+                    g = g + g2 > 255 ? 255 : g + g2;
+                    b = b + b2 > 255 ? 255 : b + b2;
+
+                    dstp32[k] = (b << 16) | (g << 8) | r | 0xff000000;
+                }
+
+                srcp32 += src_skip;
+                dstp32 += dst_skip;
+            }
+        }
+
+        destinations += fragment->length;
+    }
+}
+
+int
+_compare_desc(const void *a, const void *b)
+{
+    float fa = *(const float *)a;
+    float fb = *(const float *)b;
+    return (fa < fb) - (fa > fb);
+}
+
+int
+find_first_leq_zero(const float *restrict arr, int size)
+{
+    int low = 0;
+    int high = size - 1;
+    int result = -1;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+        if (arr[mid] > 0) {
+            low = mid + 1;
+        }
+        else {
+            result = mid;
+            high = mid - 1;
+        }
+    }
+
+    return result;
+}
+
+void
+recalculate_particle_count(DataBlock *block)
+{
+    /* Find the first particle with a lifetime less than or equal to zero */
+    int index = find_first_leq_zero(block->lifetimes.data, block->particles_count);
+
+    /* If all particles are alive the index will be -1, so just return */
+    if (index == -1)
+        return;
+
+    block->particles_count = index;
+
+    if (!index)
+        block->ended = true;
+}
+
+int
+init_fragmentation_map(DataBlock *block)
+{
+    FragmentationMap *frag_map = &block->frag_map;
+
+    frag_map->fragments = PyMem_New(Fragment, block->num_frames);
+    if (!frag_map->fragments)
+        return 0;
+
+    frag_map->destinations = PyMem_New(BlitDestination, block->particles_count);
+    if (!frag_map->destinations)
+        return 0;
+
+    frag_map->used_f = 0;
+    frag_map->alloc_f = block->num_frames;
+    frag_map->dest_count = 0;
+
+    return 1;
+}
+
+void
+dealloc_fragmentation_map(FragmentationMap *frag_map)
+{
+    PyMem_Free(frag_map->fragments);
+    PyMem_Free(frag_map->destinations);
+}
+
 int
 alloc_and_init_positions(DataBlock *block, Emitter *emitter, vec2 position)
 {
@@ -89,14 +481,6 @@ alloc_and_init_accelerations(DataBlock *block, Emitter *emitter)
 }
 
 int
-_compare_desc(const void *a, const void *b)
-{
-    float fa = *(const float *)a;
-    float fb = *(const float *)b;
-    return (fa < fb) - (fa > fb);
-}
-
-int
 alloc_and_init_lifetimes(DataBlock *block, Emitter *emitter)
 {
     /* Lifetimes must be allocated since no particle can last forever */
@@ -128,66 +512,8 @@ alloc_and_init_animation_indices(DataBlock *block, Emitter *emitter)
     return block->animation_indices != NULL;
 }
 
-int
-find_first_leq_zero(const float *restrict arr, int size)
-{
-    int low = 0;
-    int high = size - 1;
-    int result = -1;
-
-    while (low <= high) {
-        int mid = (low + high) / 2;
-        if (arr[mid] > 0) {
-            low = mid + 1;
-        }
-        else {
-            result = mid;
-            high = mid - 1;
-        }
-    }
-
-    return result;
-}
-
 void
-recalculate_particle_count(DataBlock *block)
-{
-    /* Find the first particle with a lifetime less than or equal to zero */
-    int index = find_first_leq_zero(block->lifetimes.data, block->particles_count);
-
-    /* If all particles are alive the index will be -1, so just return */
-    if (index == -1)
-        return;
-
-    block->particles_count = index;
-
-    if (!index)
-        block->ended = true;
-}
-
-void
-UDB_no_acceleration(DataBlock *block, float dt)
-{
-    float *restrict positions_x = block->positions_x.data;
-    float *restrict positions_y = block->positions_y.data;
-    float *restrict lifetimes = block->lifetimes.data;
-    float const *restrict velocities_x = block->velocities_x.data;
-    float const *restrict velocities_y = block->velocities_y.data;
-    float const *restrict max_lifetimes = block->max_lifetimes.data;
-    int *restrict indices = block->animation_indices;
-
-    for (int i = 0; i < block->particles_count; i++) {
-        positions_x[i] += velocities_x[i] * dt;
-        positions_y[i] += velocities_y[i] * dt;
-
-        lifetimes[i] -= dt;
-        indices[i] =
-            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
-    }
-}
-
-void
-UDB_all(DataBlock *block, float dt)
+update_with_acceleration(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -212,7 +538,28 @@ UDB_all(DataBlock *block, float dt)
 }
 
 void
-UDB_acceleration_x(DataBlock *block, float dt)
+update_with_no_acceleration(DataBlock *block, float dt)
+{
+    float *restrict positions_x = block->positions_x.data;
+    float *restrict positions_y = block->positions_y.data;
+    float *restrict lifetimes = block->lifetimes.data;
+    float const *restrict velocities_x = block->velocities_x.data;
+    float const *restrict velocities_y = block->velocities_y.data;
+    float const *restrict max_lifetimes = block->max_lifetimes.data;
+    int *restrict indices = block->animation_indices;
+
+    for (int i = 0; i < block->particles_count; i++) {
+        positions_x[i] += velocities_x[i] * dt;
+        positions_y[i] += velocities_y[i] * dt;
+
+        lifetimes[i] -= dt;
+        indices[i] =
+            (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
+    }
+}
+
+void
+update_with_acceleration_x(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -235,7 +582,7 @@ UDB_acceleration_x(DataBlock *block, float dt)
 }
 
 void
-UDB_acceleration_y(DataBlock *block, float dt)
+update_with_acceleration_y(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -255,75 +602,6 @@ UDB_acceleration_y(DataBlock *block, float dt)
         indices[i] =
             (int)((1.0f - lifetimes[i] / max_lifetimes[i]) * block->num_frames);
     }
-}
-
-void
-choose_and_set_update_function(DataBlock *block, Emitter *emitter)
-{
-    const bool use_x_acc = emitter->acceleration_x.in_use;
-    const bool use_y_acc = emitter->acceleration_y.in_use;
-
-#if !defined(__EMSCRIPTEN__)
-    if (_Has_AVX2()) {
-        if (!use_x_acc && !use_y_acc)
-            block->updater = UDB_no_acceleration_avx2;
-        else if (use_x_acc && !use_y_acc)
-            block->updater = UDB_acceleration_x_avx2;
-        else if (!use_x_acc && use_y_acc)
-            block->updater = UDB_acceleration_y_avx2;
-        else
-            block->updater = UDB_all_avx2;
-
-        return;
-    }
-
-#if ENABLE_SSE_NEON
-    if (_HasSSE_NEON()) {
-        if (!use_x_acc && !use_y_acc)
-            block->updater = UDB_no_acceleration_sse2;
-        else if (use_x_acc && !use_y_acc)
-            block->updater = UDB_acceleration_x_sse2;
-        else if (!use_x_acc && use_y_acc)
-            block->updater = UDB_acceleration_y_sse2;
-        else
-            block->updater = UDB_all_sse2;
-
-        return;
-    }
-#endif /* ENABLE_SSE_NEON */
-#endif /* __EMSCRIPTEN__ */
-
-    if (!use_x_acc && !use_y_acc)
-        block->updater = UDB_no_acceleration;
-    else if (use_x_acc && !use_y_acc)
-        block->updater = UDB_acceleration_x;
-    else if (!use_x_acc && use_y_acc)
-        block->updater = UDB_acceleration_y;
-    else
-        block->updater = UDB_all;
-}
-
-int
-init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
-{
-    block->particles_count = emitter->emission_number;
-    Py_INCREF(emitter->animation);
-    block->animation = emitter->animation;
-    block->num_frames = emitter->num_frames;
-    block->blend_mode = emitter->blend_mode;
-    block->ended = false;
-
-    /* Conditionally allocate memory for the arrays based on emitter properties */
-    if (!alloc_and_init_positions(block, emitter, position) ||
-        !alloc_and_init_velocities(block, emitter) ||
-        !alloc_and_init_accelerations(block, emitter) ||
-        !alloc_and_init_lifetimes(block, emitter) ||
-        !alloc_and_init_animation_indices(block, emitter))
-        return 0;
-
-    choose_and_set_update_function(block, emitter);
-
-    return 1;
 }
 
 void
@@ -356,59 +634,4 @@ update_indices(DataBlock *block)
 #endif /* __EMSCRIPTEN__ */
 
     update_indices_scalar(block);
-}
-
-void
-update_data_block(DataBlock *block, float dt)
-{
-    block->updater(block, dt);
-
-    recalculate_particle_count(block);
-
-    update_indices(block);
-}
-
-int
-draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
-{
-    pgSurfaceObject *src_obj;
-    float const *positions_x = block->positions_x.data;
-    float const *positions_y = block->positions_y.data;
-    PyObject **animation = PySequence_Fast_ITEMS(block->animation);
-    int const *indices = block->animation_indices;
-    const int max_ix = block->num_frames - 1;
-
-    for (int i = 0; i < block->particles_count; i++) {
-        const int index = clamp_int(indices[i], 0, max_ix);
-        src_obj = (pgSurfaceObject *)animation[index];
-        if (!src_obj) {
-            PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
-            return 0;
-        }
-
-        const SDL_Surface *surf = src_obj->surf;
-
-        SDL_Rect dst_rect = {(int)positions_x[i] - surf->w / 2,
-                             (int)positions_y[i] - surf->h / 2, surf->w, surf->h};
-
-        if (pgSurface_Blit(dest, src_obj, &dst_rect, NULL, blend_flag))
-            return 0;
-    }
-
-    return 1;
-}
-
-void
-dealloc_data_block(DataBlock *block)
-{
-    Py_DECREF(block->animation);
-    float_array_free(&block->positions_x);
-    float_array_free(&block->positions_y);
-    float_array_free(&block->velocities_x);
-    float_array_free(&block->velocities_y);
-    float_array_free(&block->accelerations_x);
-    float_array_free(&block->accelerations_y);
-    float_array_free(&block->lifetimes);
-    float_array_free(&block->max_lifetimes);
-    PyMem_Free(block->animation_indices);
 }

@@ -4,6 +4,24 @@
 #include "MT19937.h"
 #include "emitter.h"
 
+typedef struct {
+    int animation_index;
+    int length;
+} Fragment;
+
+typedef struct {
+    uint32_t *pixels;
+    int width, rows;
+} BlitDestination;
+
+typedef struct {
+    Fragment *fragments;
+    BlitDestination *destinations;
+    int used_f;
+    int alloc_f;
+    int dest_count;
+} FragmentationMap;
+
 typedef struct DataBlock {
     float_array positions_x;
     float_array positions_y;
@@ -17,6 +35,7 @@ typedef struct DataBlock {
 
     int num_frames;
     PyObject *animation;
+    FragmentationMap frag_map;
 
     int blend_mode;
     bool ended;
@@ -25,26 +44,44 @@ typedef struct DataBlock {
     void (*updater)(struct DataBlock *, float);
 } DataBlock;
 
-void
-UDB_no_acceleration(DataBlock *block, float dt);
-
-void
-UDB_acceleration_x(DataBlock *block, float dt);
-
-void
-UDB_acceleration_y(DataBlock *block, float dt);
-
-void
-UDB_all(DataBlock *block, float dt);
-
-void
-update_indices_scalar(DataBlock *block);
-
-void
-update_indices(DataBlock *block);
-
+/* ====================| Public facing DataBlock functions |==================== */
 int
 init_data_block(DataBlock *block, Emitter *emitter, vec2 position);
+
+void
+dealloc_data_block(DataBlock *block);
+
+void
+choose_and_set_update_function(DataBlock *block, Emitter *emitter);
+
+void
+update_data_block(DataBlock *block, float dt);
+
+int
+draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag);
+
+/* ====================| Internal DataBlock functions |==================== */
+
+int
+init_fragmentation_map(DataBlock *block);
+
+void
+dealloc_fragmentation_map(FragmentationMap *frag_map);
+
+int
+calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block);
+
+void
+blit_fragments_blitcopy(FragmentationMap *frag_map, pgSurfaceObject *dest,
+                        DataBlock *block);
+
+void
+blit_fragments_add(FragmentationMap *frag_map, pgSurfaceObject *dest,
+                   DataBlock *block);
+
+void
+blit_fragments(pgSurfaceObject *dest, FragmentationMap *frag_map, DataBlock *block,
+               int blend_flags);
 
 int
 alloc_and_init_positions(DataBlock *block, Emitter *emitter, vec2 position);
@@ -62,16 +99,26 @@ int
 alloc_and_init_animation_indices(DataBlock *block, Emitter *emitter);
 
 void
-update_data_block(DataBlock *block, float dt);
+update_with_acceleration(DataBlock *block, float dt);
 
 void
-choose_and_set_update_function(DataBlock *block, Emitter *emitter);
+update_with_no_acceleration(DataBlock *block, float dt);
 
-int
-draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag);
+void
+update_with_acceleration_x(DataBlock *block, float dt);
+
+void
+update_with_acceleration_y(DataBlock *block, float dt);
+
+void
+update_indices_scalar(DataBlock *block);
+
+void
+update_indices(DataBlock *block);
 
 void
 recalculate_particle_count(DataBlock *block);
 
 void
-dealloc_data_block(DataBlock *block);
+blit_fragments_add_scalar(FragmentationMap *frag_map, PyObject **animation,
+                          int dst_skip);
