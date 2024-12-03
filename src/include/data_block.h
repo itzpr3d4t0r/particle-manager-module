@@ -26,7 +26,7 @@ typedef struct {
 
 typedef struct {
     uint32_t *pixels;
-    int width, rows;
+    int width, rows, src_offset;
 } BlitDestination;
 
 typedef struct {

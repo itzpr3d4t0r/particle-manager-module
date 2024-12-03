@@ -460,15 +460,15 @@ blit_fragments_add_sse2(FragmentationMap *frag_map, PyObject **animation,
         Fragment *fragment = &fragments[i];
         SDL_Surface *src_surf =
             ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
-        const int src_skip = src_surf->pitch / 4 - src_surf->w;
-        const int actual_dst_skip = dst_skip - src_surf->w;
         uint32_t *const src_start = (uint32_t *)src_surf->pixels;
 
         for (int j = 0; j < fragment->length; j++) {
             BlitDestination *item = &destinations[j];
 
-            uint32_t *srcp32 = src_start;
+            uint32_t *srcp32 = src_start + item->src_offset;
             uint32_t *dstp32 = item->pixels;
+            const int src_skip = src_surf->pitch / 4 - item->width;
+            const int actual_dst_skip = dst_skip - item->width;
 
             if (item->width == 1 && item->rows == 1) {
                 blit_add_sse2_1x1(srcp32, dstp32);
@@ -534,6 +534,6 @@ void
 blit_fragments_add_sse2(FragmentationMap *frag_map, PyObject **animation,
                         int dst_skip)
 {
-    BAD_sse2_FUNCTION_CALL
+    BAD_SSE2_FUNCTION_CALL
 }
 #endif /* __SSE2__ || ENABLE_ARM_NEON */

@@ -58,21 +58,7 @@ typedef struct {
 #define pgSurface_Type (*(PyTypeObject *)PYGAMEAPI_GET_SLOT(surface, 0))
 
 #define pgSurface_Check(x) (PyObject_IsInstance((x), (PyObject *)&pgSurface_Type))
-#define pgSurface_New2 \
-    (*(pgSurfaceObject * (*)(SDL_Surface *, int)) PYGAMEAPI_GET_SLOT(surface, 1))
-
-#define pgSurface_SetSurface \
-    (*(int (*)(pgSurfaceObject *, SDL_Surface *, int))PYGAMEAPI_GET_SLOT(surface, 3))
-
-#define pgSurface_Blit                                                       \
-    (*(int (*)(pgSurfaceObject *, pgSurfaceObject *, SDL_Rect *, SDL_Rect *, \
-               int))PYGAMEAPI_GET_SLOT(surface, 2))
-
 #define import_pygame_surface() _LOAD_SLOTS_FROM_PYGAME(surface)
-
-#define pgSurface_New(surface) pgSurface_New2((surface), 1)
-#define pgSurface_NewNoOwn(surface) pgSurface_New2((surface), 0)
-#define pgSurface_AsSurface(x) (((pgSurfaceObject *)(x))->surf)
 
 #define SURF_INIT_CHECK(surf)                                              \
     if (!surf) {                                                           \

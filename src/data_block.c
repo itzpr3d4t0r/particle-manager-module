@@ -190,6 +190,10 @@ calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
             destination->pixels = dest_pixels + clipped.y * dest_skip + clipped.x;
             destination->width = clipped.w;
             destination->rows = clipped.h;
+            destination->src_offset =
+                (src_rect.x < dest_clip->x ? dest_clip->x - src_rect.x : 0) +
+                (src_rect.y < dest_clip->y ? dest_clip->y - src_rect.y : 0) *
+                    src_surf->pitch / 4;
         }
 
         positions_x += length;
@@ -234,7 +238,7 @@ blit_fragments_blitcopy(FragmentationMap *frag_map, pgSurfaceObject *dest,
         for (int j = 0; j < fragment->length; j++) {
             BlitDestination *item = &destinations[j];
 
-            uint32_t *srcp32 = src_start;
+            uint32_t *srcp32 = src_start + item->src_offset;
             uint32_t *dstp32 = item->pixels;
 
             if (item->width == 1 && item->rows == 1) {
@@ -367,17 +371,17 @@ blit_fragments_add_scalar(FragmentationMap *frag_map, PyObject **animation,
         Fragment *fragment = &fragments[i];
         SDL_Surface *src_surf =
             ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
-        const int src_skip = src_surf->pitch - src_surf->w * 4;
         uint8_t *const src_start = (uint8_t *)src_surf->pixels;
 
         for (int j = 0; j < fragment->length; j++) {
             BlitDestination *item = &destinations[j];
 
-            uint8_t *srcp8 = src_start;
+            uint8_t *srcp8 = src_start + item->src_offset * 4;
             uint8_t *dstp8 = (uint8_t *)item->pixels;
+            const int actual_dst_skip = 4 * (dst_skip - item->width);
+            const int src_skip = src_surf->pitch - item->width * 4;
 
             int h = item->rows;
-            const int actual_dst_skip = 4 * (dst_skip - item->width);
 
             while (h--) {
                 for (int k = 0; k < item->width; k++) {
