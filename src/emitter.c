@@ -182,7 +182,10 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
             }
 
             pgSurfaceObject *surf_obj = (pgSurfaceObject *)img;
-            SURF_INIT_CHECK(surf_obj->surf);
+            if (!surf_obj->surf) {
+                PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
+                return -1;
+            }
 
             SDL_Surface *surf = surf_obj->surf;
             Uint8 alpha;
