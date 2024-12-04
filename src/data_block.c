@@ -1,6 +1,10 @@
-#include "include/data_block.h"
 #include <search.h>
 #include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <malloc.h>
+
+#include "include/data_block.h"
 #include "include/simd_common.h"
 
 /* ====================| Public facing DataBlock functions |==================== */
@@ -113,10 +117,9 @@ draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
 
 /* ====================| Internal DataBlock functions |==================== */
 
-int
-calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
+void
+calculate_surface_index_occurrences(DataBlock *block)
 {
-    /* CALCULATE THE SURFACE INDEX OCCURRENCES */
     block->frag_map.used_f = 0;
 
     int const *indices = block->animation_indices;
@@ -148,8 +151,13 @@ calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
             clamp_int(current_value, 0, block->num_frames - 1);
         fragment->length = current_count;
     }
+}
 
-    /* POPULATE THE DESTINATIONS ARRAY */
+int
+populate_destinations_array(pgSurfaceObject *dest, DataBlock *block)
+{
+    FragmentationMap *frag_map = &block->frag_map;
+    Fragment *fragments = frag_map->fragments;
 
     BlitDestination *destinations = frag_map->destinations;
     float *positions_x = block->positions_x.data;
@@ -173,6 +181,7 @@ calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
         }
 
         SDL_Surface const *src_surf = src_obj->surf;
+        const int src_pitch = src_surf->pitch / 4;
         SDL_Rect src_rect = {0, 0, src_surf->w, src_surf->h};
 
         for (int j = 0; j < length; j++) {
@@ -193,12 +202,23 @@ calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
             destination->src_offset =
                 (src_rect.x < dest_clip->x ? dest_clip->x - src_rect.x : 0) +
                 (src_rect.y < dest_clip->y ? dest_clip->y - src_rect.y : 0) *
-                    src_surf->pitch / 4;
+                    src_pitch;
         }
 
         positions_x += length;
         positions_y += length;
     }
+
+    return 1;
+}
+
+int
+calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block)
+{
+    calculate_surface_index_occurrences(block);
+
+    if (!populate_destinations_array(dest, block))
+        return 0;
 
     return 1;
 }
