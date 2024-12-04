@@ -27,7 +27,7 @@ _Has_AVX2()
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_all_avx2(DataBlock *block, float dt)
+update_with_acceleration_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -105,7 +105,7 @@ UDB_all_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_all_avx2(DataBlock *block, float dt)
+update_with_acceleration_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -115,7 +115,7 @@ UDB_all_avx2(DataBlock *block, float dt)
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_no_acceleration_avx2(DataBlock *block, float dt)
+update_with_no_acceleration_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -174,7 +174,7 @@ UDB_no_acceleration_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_no_acceleration_avx2(DataBlock *block, float dt)
+update_with_no_acceleration_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -184,7 +184,7 @@ UDB_no_acceleration_avx2(DataBlock *block, float dt)
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_acceleration_x_avx2(DataBlock *block, float dt)
+update_with_acceleration_x_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -254,7 +254,7 @@ UDB_acceleration_x_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_acceleration_x_avx2(DataBlock *block, float dt)
+update_with_acceleration_x_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -264,7 +264,7 @@ UDB_acceleration_x_avx2(DataBlock *block, float dt)
 #if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
     !defined(SDL_DISABLE_IMMINTRIN_H)
 void
-UDB_acceleration_y_avx2(DataBlock *block, float dt)
+update_with_acceleration_y_avx2(DataBlock *block, float dt)
 {
     float *restrict positions_x = block->positions_x.data;
     float *restrict positions_y = block->positions_y.data;
@@ -334,7 +334,7 @@ UDB_acceleration_y_avx2(DataBlock *block, float dt)
 }
 #else
 void
-UDB_acceleration_y_avx2(DataBlock *block, float dt)
+update_with_acceleration_y_avx2(DataBlock *block, float dt)
 {
     BAD_AVX2_FUNCTION_CALL
 }
@@ -366,7 +366,7 @@ update_indices_avx2(DataBlock *block)
         __m256i idx = _mm256_cvttps_epi32(_mm256_mul_ps(
             _mm256_sub_ps(one_v, _mm256_div_ps(t, max_t)), num_frames_v));
 
-        _mm256_storeu_si256((__m256i *)indices, idx);
+        _mm256_storeu_si256(indices, idx);
 
         lifetimes += 8;
         max_lifetimes += 8;
@@ -386,6 +386,239 @@ update_indices_avx2(DataBlock *block)
 #else
 void
 update_indices_avx2(DataBlock *block)
+{
+    BAD_AVX2_FUNCTION_CALL
+}
+#endif /* defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
+          \ !defined(SDL_DISABLE_IMMINTRIN_H) */
+
+#if defined(__AVX2__) && defined(HAVE_IMMINTRIN_H) && \
+    !defined(SDL_DISABLE_IMMINTRIN_H)
+void inline blit_add_avx2_1x1(uint32_t *srcp32, uint32_t *dstp32)
+{
+    __m128i src128 = _mm_cvtsi32_si128(*srcp32);
+    __m128i dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+}
+
+void inline blit_add_avx2_2x2(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    __m128i dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+
+    srcp32 += 2 + src_skip;
+    dstp32 += 2 + dst_skip;
+
+    src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+}
+
+void inline blit_add_avx2_3x3(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    __m128i dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+
+    srcp32 += 2;
+    dstp32 += 2;
+
+    src128 = _mm_cvtsi32_si128(*srcp32);
+    dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+
+    srcp32 += 1 + src_skip;
+    dstp32 += 1 + dst_skip;
+
+    src128 = _mm_loadl_epi64((__m128i *)srcp32);
+    dst128 = _mm_loadl_epi64((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storel_epi64((__m128i *)dstp32, dst128);
+
+    srcp32 += 2;
+    dstp32 += 2;
+
+    src128 = _mm_cvtsi32_si128(*srcp32);
+    dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+}
+
+void inline blit_add_avx2_4x4(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128;
+    __m128i dst128;
+    UNROLL_3({
+        src128 = _mm_loadu_si128((__m128i *)srcp32);
+        dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+        dst128 = _mm_adds_epu8(src128, dst128);
+
+        _mm_storeu_si128((__m128i *)dstp32, dst128);
+
+        srcp32 += 4 + src_skip;
+        dstp32 += 4 + dst_skip;
+    })
+
+    src128 = _mm_loadu_si128((__m128i *)srcp32);
+    dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storeu_si128((__m128i *)dstp32, dst128);
+}
+
+void inline blit_add_avx2_5x5(uint32_t *srcp32, uint32_t *dstp32, int src_skip,
+                              int dst_skip)
+{
+    __m128i src128;
+    __m128i dst128;
+    UNROLL_4({
+        src128 = _mm_loadu_si128((__m128i *)srcp32);
+        dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+        dst128 = _mm_adds_epu8(src128, dst128);
+
+        _mm_storeu_si128((__m128i *)dstp32, dst128);
+
+        srcp32 += 4;
+        dstp32 += 4;
+
+        src128 = _mm_cvtsi32_si128(*srcp32);
+        dst128 = _mm_cvtsi32_si128(*dstp32);
+
+        dst128 = _mm_adds_epu8(src128, dst128);
+
+        *dstp32 = _mm_cvtsi128_si32(dst128);
+
+        srcp32 += 1 + src_skip;
+        dstp32 += 1 + dst_skip;
+    })
+
+    src128 = _mm_loadu_si128((__m128i *)srcp32);
+    dst128 = _mm_loadu_si128((__m128i *)dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    _mm_storeu_si128((__m128i *)dstp32, dst128);
+
+    srcp32 += 4;
+    dstp32 += 4;
+
+    src128 = _mm_cvtsi32_si128(*srcp32);
+    dst128 = _mm_cvtsi32_si128(*dstp32);
+
+    dst128 = _mm_adds_epu8(src128, dst128);
+
+    *dstp32 = _mm_cvtsi128_si32(dst128);
+}
+
+void
+blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
+                        int dst_skip)
+{
+    Fragment *fragments = frag_map->fragments;
+    BlitDestination *destinations = frag_map->destinations;
+
+    for (int i = 0; i < frag_map->used_f; i++) {
+        Fragment *fragment = &fragments[i];
+        SDL_Surface *src_surf =
+            ((pgSurfaceObject *)animation[fragment->animation_index])->surf;
+        uint32_t *const src_start = (uint32_t *)src_surf->pixels;
+
+        for (int j = 0; j < fragment->length; j++) {
+            BlitDestination *item = &destinations[j];
+            uint32_t *srcp32 = src_start + item->src_offset;
+            uint32_t *dstp32 = item->pixels;
+            const int src_skip = src_surf->pitch / 4 - item->width;
+            const int actual_dst_skip = dst_skip - item->width;
+
+            if (item->width == 1 && item->rows == 1) {
+                blit_add_avx2_1x1(srcp32, dstp32);
+                continue;
+            }
+            else if (item->width == 2 && item->rows == 2) {
+                blit_add_avx2_2x2(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+            else if (item->width == 3 && item->rows == 3) {
+                blit_add_avx2_3x3(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+            else if (item->width == 4 && item->rows == 4) {
+                blit_add_avx2_4x4(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+            else if (item->width == 5 && item->rows == 5) {
+                blit_add_avx2_5x5(srcp32, dstp32, src_skip, actual_dst_skip);
+                continue;
+            }
+
+            int h = item->rows;
+
+            const int n_iters_8 = item->width / 8;
+            const int pxl_excess = item->width % 8;
+
+            while (h--) {
+                for (int k = 0; k < n_iters_8; k++) {
+                    __m256i src256 = _mm256_loadu_si256((__m256i *)srcp32);
+                    __m256i dst256 = _mm256_loadu_si256((__m256i *)dstp32);
+
+                    dst256 = _mm256_adds_epu8(src256, dst256);
+
+                    _mm256_storeu_si256((__m256i *)dstp32, dst256);
+
+                    srcp32 += 8;
+                    dstp32 += 8;
+                }
+
+                for (int k = 0; k < pxl_excess; k++) {
+                    __m128i src128 = _mm_cvtsi32_si128(*srcp32);
+                    __m128i dst128 = _mm_cvtsi32_si128(*dstp32);
+
+                    dst128 = _mm_adds_epu8(src128, dst128);
+
+                    *dstp32 = _mm_cvtsi128_si32(dst128);
+
+                    srcp32++;
+                    dstp32++;
+                }
+
+                srcp32 += src_skip;
+                dstp32 += actual_dst_skip;
+            }
+        }
+
+        destinations += fragment->length;
+    }
+}
+#else
+void
+blit_fragments_add_avx2(FragmentationMap *frag_map, PyObject **animation,
+                        int dst_skip)
 {
     BAD_AVX2_FUNCTION_CALL
 }

@@ -89,7 +89,7 @@ PyInit_itz_particle_manager(void)
     Py_INCREF(&ParticleEffect_Type);
     PyModule_AddObject(module, "ParticleEffect", (PyObject *)&ParticleEffect_Type);
 
-    if (PyModule_AddIntConstant(module, "EMIT_POINT", POINT) == -1)
+    if (PyModule_AddIntConstant(module, "EMIT_POINT", _POINT) == -1)
         return NULL;
 
     init_genrand((uint32_t)time(NULL));

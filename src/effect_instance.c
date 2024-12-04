@@ -49,10 +49,11 @@ update_effect_instance(EffectInstance *instance, float dt)
 int
 draw_effect_instance(EffectInstance *instance, pgSurfaceObject *dest)
 {
-    for (Py_ssize_t i = 0; i < instance->blocks_count; i++)
-        if (!draw_data_block(&instance->p_data[i], dest,
-                             instance->p_data[i].blend_mode))
+    for (Py_ssize_t i = 0; i < instance->blocks_count; i++) {
+        DataBlock *block = &instance->p_data[i];
+        if (!draw_data_block(block, dest, block->blend_mode))
             return 0;
+    }
 
     return 1;
 }

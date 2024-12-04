@@ -141,7 +141,7 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
     }
 
     switch (emitter->spawn_shape) {
-        case POINT:
+        case _POINT:
             break;
         default:
             PyErr_SetString(PyExc_ValueError, "Invalid emitter spawn area shape");
@@ -181,7 +181,13 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
                 return -1;
             }
 
-            SDL_Surface *surf = ((pgSurfaceObject *)img)->surf;
+            pgSurfaceObject *surf_obj = (pgSurfaceObject *)img;
+            if (!surf_obj->surf) {
+                PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
+                return -1;
+            }
+
+            SDL_Surface *surf = surf_obj->surf;
             Uint8 alpha;
 
             /* Rule out unsupported image formats and flags */
@@ -324,7 +330,7 @@ emitter_str(EmitterObject *self)
 
     char *spawn_shape_str;
     switch (e->spawn_shape) {
-        case POINT:
+        case _POINT:
             spawn_shape_str = "POINT";
             break;
         default:
