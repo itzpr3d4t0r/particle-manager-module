@@ -167,7 +167,14 @@ populate_destinations_array(pgSurfaceObject *dest, DataBlock *block)
 
     const int dest_skip = dest_surf->pitch / 4;
     uint32_t *dest_pixels = (uint32_t *)dest_surf->pixels;
-    const SDL_Rect *dest_clip = &dest_surf->clip_rect;
+
+    const SDL_Rect dest_clip = dest_surf->clip_rect;
+
+    const int dst_clip_x = dest_clip.x;
+    const int dst_clip_y = dest_clip.y;
+    const int dst_clip_right = dest_clip.x + dest_clip.w;
+    const int dst_clip_bottom = dest_clip.y + dest_clip.h;
+
     frag_map->dest_count = 0;
 
     for (int i = 0; i < frag_map->used_f; i++) {
@@ -182,14 +189,18 @@ populate_destinations_array(pgSurfaceObject *dest, DataBlock *block)
 
         SDL_Surface const *src_surf = src_obj->surf;
         const int src_pitch = src_surf->pitch / 4;
-        SDL_Rect src_rect = {0, 0, src_surf->w, src_surf->h};
+        const int width = src_surf->w;
+        const int height = src_surf->h;
 
         for (int j = 0; j < length; j++) {
-            src_rect.x = (int)positions_x[j];
-            src_rect.y = (int)positions_y[j];
+            const int A_x = (int)positions_x[j];
+            const int A_y = (int)positions_y[j];
+            const int A_x_right = A_x + width;
+            const int A_y_bottom = A_y + height;
 
             SDL_Rect clipped;
-            if (!SDL_IntersectRect(&src_rect, dest_clip, &clipped)) {
+            if (!IntersectRect(A_x, A_x_right, dst_clip_x, dst_clip_right, A_y,
+                               A_y_bottom, dst_clip_y, dst_clip_bottom, &clipped)) {
                 frg->length--;
                 continue;
             }
@@ -200,9 +211,8 @@ populate_destinations_array(pgSurfaceObject *dest, DataBlock *block)
             destination->width = clipped.w;
             destination->rows = clipped.h;
             destination->src_offset =
-                (src_rect.x < dest_clip->x ? dest_clip->x - src_rect.x : 0) +
-                (src_rect.y < dest_clip->y ? dest_clip->y - src_rect.y : 0) *
-                    src_pitch;
+                (A_x < dst_clip_x ? dst_clip_x - A_x : 0) +
+                (A_y < dst_clip_y ? dst_clip_y - A_y : 0) * src_pitch;
         }
 
         positions_x += length;
@@ -518,7 +528,7 @@ alloc_and_init_positions(DataBlock *block, Emitter *emitter, vec2 position)
     float *restrict positions_y = y->data;
 
     switch (emitter->spawn_shape) {
-        case POINT:
+        case _POINT:
             for (int i = 0; i < emitter->emission_number; i++) {
                 positions_x[i] = position.x;
                 positions_y[i] = position.y;
@@ -741,4 +751,33 @@ update_indices(DataBlock *block)
 #endif /* __EMSCRIPTEN__ */
 
     update_indices_scalar(block);
+}
+
+int FORCEINLINE
+RectEmpty(const SDL_Rect *r)
+{
+    return (r->w <= 0) || (r->h <= 0);
+}
+
+int FORCEINLINE
+IntersectRect(int Amin_x, int Amax_x, const int Bmin_x, const int Bmax_x, int Amin_y,
+              int Amax_y, const int Bmin_y, const int Bmax_y, SDL_Rect *result)
+{
+    /* Horizontal intersection */
+    if (Bmin_x > Amin_x)
+        Amin_x = Bmin_x;
+    result->x = Amin_x;
+    if (Bmax_x < Amax_x)
+        Amax_x = Bmax_x;
+    result->w = Amax_x - Amin_x;
+
+    /* Vertical intersection */
+    if (Bmin_y > Amin_y)
+        Amin_y = Bmin_y;
+    result->y = Amin_y;
+    if (Bmax_y < Amax_y)
+        Amax_y = Bmax_y;
+    result->h = Amax_y - Amin_y;
+
+    return !RectEmpty(result);
 }

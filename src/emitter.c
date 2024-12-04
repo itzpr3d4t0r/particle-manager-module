@@ -141,7 +141,7 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
     }
 
     switch (emitter->spawn_shape) {
-        case POINT:
+        case _POINT:
             break;
         default:
             PyErr_SetString(PyExc_ValueError, "Invalid emitter spawn area shape");
@@ -324,7 +324,7 @@ emitter_str(EmitterObject *self)
 
     char *spawn_shape_str;
     switch (e->spawn_shape) {
-        case POINT:
+        case _POINT:
             spawn_shape_str = "POINT";
             break;
         default:

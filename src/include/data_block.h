@@ -83,6 +83,12 @@ init_fragmentation_map(DataBlock *block);
 void
 dealloc_fragmentation_map(FragmentationMap *frag_map);
 
+void
+calculate_surface_index_occurrences(DataBlock *block);
+
+int
+populate_destinations_array(pgSurfaceObject *dest, DataBlock *block);
+
 int
 calculate_fragmentation_map(pgSurfaceObject *dest, DataBlock *block);
 
@@ -137,3 +143,10 @@ recalculate_particle_count(DataBlock *block);
 void
 blit_fragments_add_scalar(FragmentationMap *frag_map, PyObject **animation,
                           int dst_skip);
+
+int FORCEINLINE
+RectEmpty(const SDL_Rect *r);
+
+int FORCEINLINE
+IntersectRect(int Amin_x, int Amax_x, const int Bmin_x, const int Bmax_x, int Amin_y,
+              int Amax_y, const int Bmin_y, const int Bmax_y, SDL_Rect *result);

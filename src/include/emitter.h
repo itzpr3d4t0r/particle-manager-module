@@ -5,9 +5,7 @@
 #include "base.h"
 
 typedef enum {
-    POINT,
-    CIRCLE,
-    RECTANGLE,
+    _POINT,
 } EmitterSpawnShape;
 
 typedef struct {
