@@ -181,7 +181,10 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
                 return -1;
             }
 
-            SDL_Surface *surf = ((pgSurfaceObject *)img)->surf;
+            pgSurfaceObject *surf_obj = (pgSurfaceObject *)img;
+            SURF_INIT_CHECK(surf_obj->surf);
+
+            SDL_Surface *surf = surf_obj->surf;
             Uint8 alpha;
 
             /* Rule out unsupported image formats and flags */
