@@ -2,7 +2,6 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <malloc.h>
 
 #include "include/data_block.h"
 #include "include/simd_common.h"
