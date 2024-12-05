@@ -13,14 +13,10 @@ typedef struct {
     EmitterSpawnShape spawn_shape;
 
     /* Core emitter settings */
-    bool looping;            /* if the emitter should loop */
-    float emission_interval; /* time between emissions */
-    float emission_time;     /* time the emitter is active */
-    float emission_counter;  /* counter used to determine when to emit */
-    int emission_number;     /* number of particles to emit */
+    int emission_number; /* number of particles to emit */
 
     /* Core particle settings */
-    PyObject *animation; /* particle animation tuple */
+    PyObject *animation; /* python tuple containing animation frames */
     int num_frames;      /* animation frames number */
 
     generator lifetime;
@@ -28,13 +24,9 @@ typedef struct {
     generator speed_y;
     generator acceleration_x;
     generator acceleration_y;
-    generator angle;
 
     /* Additional particle settings */
     int blend_mode;
-    bool angled;
-    bool align_speed_to_angle;
-    bool align_acceleration_to_angle;
 } Emitter;
 
 typedef struct {

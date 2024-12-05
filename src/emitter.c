@@ -109,34 +109,19 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
 {
     Emitter *emitter = &self->emitter;
 
-    static char *kwlist[] = {"emit_shape",
-                             "emit_number",
-                             "looping",
-                             "emit_interval",
-                             "emit_time",
-                             "animation",
-                             "particle_lifetime",
-                             "speed_x",
-                             "speed_y",
-                             "acceleration_x",
-                             "acceleration_y",
-                             "angle",
-                             "align_speed_to_angle",
-                             "align_acceleration_to_angle",
-                             "blend_mode",
-                             NULL};
+    static char *kwlist[] = {
+        "emit_shape", "emit_number", "animation",      "particle_lifetime",
+        "speed_x",    "speed_y",     "acceleration_x", "acceleration_y",
+        "blend_mode", NULL};
 
     PyObject *animation = NULL;
     PyObject *lifetime_obj = NULL, *speedx_obj = NULL, *speedy_obj = NULL,
-             *accx_obj = NULL, *accy_obj = NULL, *angle_obj = NULL;
+             *accx_obj = NULL, *accy_obj = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "i|iiffOOOOOOOiii", kwlist, &emitter->spawn_shape,
-            &emitter->emission_number, &emitter->looping,
-            &emitter->emission_interval, &emitter->emission_time, &animation,
-            &lifetime_obj, &speedx_obj, &speedy_obj, &accx_obj, &accy_obj,
-            &angle_obj, &emitter->align_speed_to_angle,
-            &emitter->align_acceleration_to_angle, &emitter->blend_mode)) {
+            args, kwds, "iiOO|OOOOi", kwlist, &emitter->spawn_shape,
+            &emitter->emission_number, &animation, &lifetime_obj, &speedx_obj,
+            &speedy_obj, &accx_obj, &accy_obj, &emitter->blend_mode)) {
         return -1;
     }
 
@@ -237,96 +222,41 @@ emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    if (angle_obj && !initGen_FromObj(angle_obj, &emitter->angle)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid angle argument");
-        return -1;
-    }
-
-    if (!emitter->angle.in_use) {
-        if (emitter->align_speed_to_angle) {
-            PyErr_SetString(
-                PyExc_ValueError,
-                "align_speed_to_angle argument requires an angle to be set");
-            return -1;
-        }
-        else if (emitter->align_acceleration_to_angle) {
-            PyErr_SetString(
-                PyExc_ValueError,
-                "align_acceleration_to_angle argument requires an angle to be set");
-            return -1;
-        }
-    }
-
     return 0;
 }
+
+#define TF(x) ((x) ? "Yes" : "No")
+#define CREATE_PYFLOAT(var, value)   \
+    var = PyFloat_FromDouble(value); \
+    if (PyErr_Occurred())            \
+    goto on_error
 
 PyObject *
 emitter_str(EmitterObject *self)
 {
     Emitter *e = &self->emitter;
 
-    PyObject *py_emission_interval = NULL, *py_emission_time = NULL,
-             *lifetime_min = NULL, *lifetime_max = NULL, *speed_x_min = NULL,
-             *speed_x_max = NULL, *speed_y_min = NULL, *speed_y_max = NULL,
-             *acceleration_x_min = NULL, *acceleration_x_max = NULL,
-             *acceleration_y_min = NULL, *acceleration_y_max = NULL,
-             *angle_min = NULL, *angle_max = NULL;
+    PyObject *lifetime_min = NULL;
+    PyObject *lifetime_max = NULL;
+    PyObject *speed_x_min = NULL;
+    PyObject *speed_x_max = NULL;
+    PyObject *speed_y_min = NULL;
+    PyObject *speed_y_max = NULL;
+    PyObject *acceleration_x_min = NULL;
+    PyObject *acceleration_x_max = NULL;
+    PyObject *acceleration_y_min = NULL;
+    PyObject *acceleration_y_max = NULL;
 
-    py_emission_interval = PyFloat_FromDouble(e->emission_interval);
-    if (PyErr_Occurred())
-        return NULL;
-
-    py_emission_time = PyFloat_FromDouble(e->emission_time);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    lifetime_min = PyFloat_FromDouble(e->lifetime.min);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    lifetime_max = PyFloat_FromDouble(e->lifetime.max);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    speed_x_min = PyFloat_FromDouble(e->speed_x.min);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    speed_x_max = PyFloat_FromDouble(e->speed_x.max);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    speed_y_min = PyFloat_FromDouble(e->speed_y.min);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    speed_y_max = PyFloat_FromDouble(e->speed_y.max);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    acceleration_x_min = PyFloat_FromDouble(e->acceleration_x.min);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    acceleration_x_max = PyFloat_FromDouble(e->acceleration_x.max);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    acceleration_y_min = PyFloat_FromDouble(e->acceleration_y.min);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    acceleration_y_max = PyFloat_FromDouble(e->acceleration_y.max);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    angle_min = PyFloat_FromDouble(e->angle.min);
-    if (PyErr_Occurred())
-        goto on_error;
-
-    angle_max = PyFloat_FromDouble(e->angle.max);
-    if (PyErr_Occurred())
-        goto on_error;
+    CREATE_PYFLOAT(lifetime_min, e->lifetime.min);
+    CREATE_PYFLOAT(lifetime_max, e->lifetime.max);
+    CREATE_PYFLOAT(speed_x_min, e->speed_x.min);
+    CREATE_PYFLOAT(speed_x_max, e->speed_x.max);
+    CREATE_PYFLOAT(speed_y_min, e->speed_y.min);
+    CREATE_PYFLOAT(speed_y_max, e->speed_y.max);
+    CREATE_PYFLOAT(acceleration_x_min, e->acceleration_x.min);
+    CREATE_PYFLOAT(acceleration_x_max, e->acceleration_x.max);
+    CREATE_PYFLOAT(acceleration_y_min, e->acceleration_y.min);
+    CREATE_PYFLOAT(acceleration_y_max, e->acceleration_y.max);
 
     char *spawn_shape_str;
     switch (e->spawn_shape) {
@@ -338,7 +268,6 @@ emitter_str(EmitterObject *self)
             break;
     }
 
-    generator *angle = &e->angle;
     generator *lifetime = &e->lifetime;
     generator *speed_x = &e->speed_x;
     generator *speed_y = &e->speed_y;
@@ -347,35 +276,21 @@ emitter_str(EmitterObject *self)
 
     PyObject *str = PyUnicode_FromFormat(
         "Emitter("
-        "\n    spawn_shape=%s,"
-        "\n    emission_number=%d,"
-        "\n    looping=%s,"
-        "\n    emission_interval=%R,"
-        "\n    emission_time=%R,"
-        "\n    animation=(%d images),"
-        "\n    lifetime=(%R, %R, random=%s),"
-        "\n    speed_x=(%R, %R, random=%s),"
-        "\n    speed_y=(%R, %R, random=%s),"
-        "\n    acceleration_x=(%R, %R, random=%s),"
-        "\n    acceleration_y=(%R, %R, random=%s),"
-        "\n    angle=(%R, %R, random=%s),"
-        "\n    align_speed_to_angle=%s,"
-        "\n    align_acceleration_to_angle=%s"
+        "\n    spawn_shape:      %s"
+        "\n    emission_number:  %d"
+        "\n    animation:        %d images,"
+        "\n    lifetime:         %R to %R   rng: %s"
+        "\n    speed_x:          %R to %R   rng: %s"
+        "\n    speed_y:          %R to %R   rng: %s"
+        "\n    acceleration_x:   %R to %R   rng: %s"
+        "\n    acceleration_y:   %R to %R   rng: %s"
         "\n)",
-        spawn_shape_str, e->emission_number, e->looping ? "True" : "False",
-        py_emission_interval, py_emission_time, e->num_frames, lifetime_min,
-        lifetime_max, lifetime->randomize ? "True" : "False", speed_x_min,
-        speed_x_max, speed_x->randomize ? "True" : "False", speed_y_min, speed_y_max,
-        speed_y->randomize ? "True" : "False", acceleration_x_min,
-        acceleration_x_max, accel_x->randomize ? "True" : "False",
-        acceleration_y_min, acceleration_y_max,
-        accel_y->randomize ? "True" : "False", angle_min, angle_max,
-        angle->randomize ? "True" : "False",
-        e->align_speed_to_angle ? "True" : "False",
-        e->align_acceleration_to_angle ? "True" : "False");
+        spawn_shape_str, e->emission_number, e->num_frames, lifetime_min,
+        lifetime_max, TF(lifetime->randomize), speed_x_min, speed_x_max,
+        TF(speed_x->randomize), speed_y_min, speed_y_max, TF(speed_y->randomize),
+        acceleration_x_min, acceleration_x_max, TF(accel_x->randomize),
+        acceleration_y_min, acceleration_y_max, TF(accel_y->randomize));
 
-    Py_DECREF(py_emission_interval);
-    Py_DECREF(py_emission_time);
     Py_DECREF(lifetime_min);
     Py_DECREF(lifetime_max);
     Py_DECREF(speed_x_min);
@@ -386,14 +301,10 @@ emitter_str(EmitterObject *self)
     Py_DECREF(acceleration_x_max);
     Py_DECREF(acceleration_y_min);
     Py_DECREF(acceleration_y_max);
-    Py_DECREF(angle_min);
-    Py_DECREF(angle_max);
 
     return str;
 
 on_error:
-    Py_XDECREF(py_emission_interval);
-    Py_XDECREF(py_emission_time);
     Py_XDECREF(lifetime_min);
     Py_XDECREF(lifetime_max);
     Py_XDECREF(speed_x_min);
@@ -404,11 +315,12 @@ on_error:
     Py_XDECREF(acceleration_x_max);
     Py_XDECREF(acceleration_y_min);
     Py_XDECREF(acceleration_y_max);
-    Py_XDECREF(angle_min);
-    Py_XDECREF(angle_max);
 
     return NULL;
 }
+
+#undef TF
+#undef CREATE_PYFLOAT
 
 void
 emitter_dealloc(EmitterObject *self)
