@@ -2,7 +2,6 @@
 
 #include "particle_effect.h"
 #include "effect_instance.h"
-#include "MT19937.h"
 #include <math.h>
 
 #define PM_BASE_BLOCK_SIZE 10

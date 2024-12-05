@@ -1,7 +1,6 @@
 #pragma once
 
 #include "float_array.h"
-#include "MT19937.h"
 #include "emitter.h"
 
 #define UNROLL_2(x) \
@@ -18,6 +17,25 @@
     x;              \
     x;              \
     x;
+
+typedef enum {
+    // Velocity flags
+    VELOCITY_X_SINGLE = 1 << 0,  // Single s_velocity_x
+    VELOCITY_Y_SINGLE = 1 << 1,  // Single s_velocity_y
+    VELOCITY_X_ARRAY = 1 << 2,   // Velocity x array
+    VELOCITY_Y_ARRAY = 1 << 3,   // Velocity y array
+
+    // Acceleration flags
+    ACCEL_X_SINGLE = 1 << 4,  // Single s_acceleration_x
+    ACCEL_Y_SINGLE = 1 << 5,  // Single s_acceleration_y
+    ACCEL_X_ARRAY = 1 << 6,   // Acceleration x array
+    ACCEL_Y_ARRAY = 1 << 7,   // Acceleration y array
+
+    NO_ACCELERATION = 1 << 8,     // No acceleration
+    NO_ACCELERATION_X = 1 << 9,   // No acceleration x
+    NO_ACCELERATION_Y = 1 << 10,  // No acceleration y
+    NO_VELOCITY = 1 << 11,        // No velocity
+} UpdateFunctionFlags;
 
 typedef struct {
     int animation_index;
@@ -48,6 +66,12 @@ typedef struct DataBlock {
     float_array max_lifetimes;
     int *animation_indices;
 
+    float s_velocity_x;
+    float s_velocity_y;
+    float s_acceleration_x;
+    float s_acceleration_y;
+    float s_lifetime;
+
     int num_frames;
     PyObject *animation;
     FragmentationMap frag_map;
@@ -56,6 +80,7 @@ typedef struct DataBlock {
     bool ended;
 
     int particles_count;
+    int update_flags;
     void (*updater)(struct DataBlock *, float);
 } DataBlock;
 
