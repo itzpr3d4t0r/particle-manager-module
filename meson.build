@@ -178,6 +178,7 @@ src_files = [
     'src/particle_manager.c',
     'src/emitter.c',
     'src/particle_effect.c',
+    'src/option.c',
 ]
 
 py.extension_module(

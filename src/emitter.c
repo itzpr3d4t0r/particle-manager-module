@@ -1,5 +1,6 @@
 #include "include/emitter.h"
 
+/* ==================| Public facing EmitterObject functions |================== */
 PyObject *
 emitter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
@@ -14,218 +15,46 @@ emitter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     return (PyObject *)self;
 }
 
-static FORCEINLINE int
-initGen_FromObj(PyObject *obj, generator *gen)
-{
-    /* Tries to extract either one or two floats from an object.
-     * If the object is a tuple, it must have one or two floats.
-     * If the object is a float, it is used as the minimum value. */
-
-    if (PyFloat_Check(obj)) {
-        gen->min = (float)PyFloat_AS_DOUBLE(obj);
-        gen->in_use = true;
-
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            return 0;
-        }
-
-        return 1;
-    }
-    else if (PyLong_Check(obj)) {
-        gen->min = (float)PyLong_AsDouble(obj);
-        gen->in_use = true;
-
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            return 0;
-        }
-
-        return 1;
-    }
-
-    Py_ssize_t size;
-
-    if (PyTuple_Check(obj)) {
-        size = PyTuple_GET_SIZE(obj);
-        if (size < 1 || size > 2)
-            return 0;
-
-        if (!FloatFromObj(PyTuple_GET_ITEM(obj, 0), &gen->min))
-            return 0;
-
-        if (size == 2) {
-            if (!FloatFromObj(PyTuple_GET_ITEM(obj, 1), &gen->max))
-                return 0;
-
-            gen->randomize = 1;
-        }
-    }
-    else if (PyList_Check(obj)) {
-        size = PyList_GET_SIZE(obj);
-        if (size < 1 || size > 2)
-            return 0;
-
-        if (!FloatFromObj(PyList_GET_ITEM(obj, 0), &gen->min))
-            return 0;
-
-        if (size == 2) {
-            if (!FloatFromObj(PyList_GET_ITEM(obj, 1), &gen->max))
-                return 0;
-            gen->randomize = 1;
-        }
-    }
-    else if (PySequence_Check(obj)) {
-        size = PySequence_Length(obj);
-        if (size < 1 || size > 2)
-            return 0;
-
-        if (!_FloatFromObjIndex(obj, 0, &gen->min))
-            return 0;
-
-        if (size == 2) {
-            if (!_FloatFromObjIndex(obj, 1, &gen->max))
-                return 0;
-            gen->randomize = 1;
-        }
-    }
-    else {
-        return 0;
-    }
-
-    if (gen->min > gen->max) {
-        float tmp = gen->min;
-        gen->min = gen->max;
-        gen->max = tmp;
-    }
-
-    gen->in_use = true;
-
-    return 1;
-}
-
 int
 emitter_init(EmitterObject *self, PyObject *args, PyObject *kwds)
 {
-    Emitter *emitter = &self->emitter;
-
     static char *kwlist[] = {
         "emit_shape", "emit_number", "animation",      "particle_lifetime",
         "speed_x",    "speed_y",     "acceleration_x", "acceleration_y",
         "blend_mode", NULL};
 
-    PyObject *animation = NULL;
-    PyObject *lifetime_obj = NULL, *speedx_obj = NULL, *speedy_obj = NULL,
-             *accx_obj = NULL, *accy_obj = NULL;
+    PyObject *py_animation = NULL, *py_lifetime = NULL, *py_speed_x = NULL,
+             *py_speed_y = NULL, *py_acceleration_x = NULL,
+             *py_acceleration_y = NULL;
+    Emitter *emitter = &self->emitter;
 
     if (!PyArg_ParseTupleAndKeywords(
             args, kwds, "iiOO|OOOOi", kwlist, &emitter->spawn_shape,
-            &emitter->emission_number, &animation, &lifetime_obj, &speedx_obj,
-            &speedy_obj, &accx_obj, &accy_obj, &emitter->blend_mode)) {
+            &emitter->emission_number, &py_animation, &py_lifetime, &py_speed_x,
+            &py_speed_y, &py_acceleration_x, &py_acceleration_y,
+            &emitter->blend_mode)) {
         return -1;
     }
 
-    switch (emitter->spawn_shape) {
-        case _POINT:
-            break;
-        default:
-            PyErr_SetString(PyExc_ValueError, "Invalid emitter spawn area shape");
-            return -1;
-    }
-
-    switch (emitter->blend_mode) {
-        case 0:
-        case 1:
-            break;
-        default:
-            PyErr_SetString(PyExc_ValueError,
-                            "Invalid blend mode, supported blend modes are:"
-                            " pygame.BLEND_ADD and pygame.BLENDMODE_NONE");
-            return -1;
-    }
-
-    if (PyTuple_Check(animation)) {
-        int len = PyTuple_GET_SIZE(animation);
-        if (len == 0) {
-            PyErr_SetString(PyExc_ValueError, "animation tuple is empty");
-            return -1;
-        }
-
-        emitter->num_frames = len;
-
-        Py_INCREF(animation);
-        emitter->animation = animation;
-
-        PyObject **items = PySequence_Fast_ITEMS(animation);
-        for (int i = 0; i < len; i++) {
-            PyObject *img = items[i];
-            if (!pgSurface_Check(img)) {
-                PyErr_SetString(
-                    PyExc_TypeError,
-                    "Invalid image in animation, must be a pygame.Surface");
-                return -1;
-            }
-
-            pgSurfaceObject *surf_obj = (pgSurfaceObject *)img;
-            if (!surf_obj->surf) {
-                PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
-                return -1;
-            }
-
-            SDL_Surface *surf = surf_obj->surf;
-            Uint8 alpha;
-
-            /* Rule out unsupported image formats and flags */
-            if (surf->format->BytesPerPixel != 4 || SDL_HasColorKey(surf) ||
-                SDL_HasSurfaceRLE(surf) || (surf->flags & SDL_RLEACCEL) ||
-                SDL_ISPIXELFORMAT_ALPHA(surf->format->format) ||
-                (SDL_GetSurfaceAlphaMod(surf, &alpha) == 0 && alpha != 255)) {
-                PyErr_SetString(
-                    PyExc_ValueError,
-                    "Image must be 32-bit, non-RLE, non-alpha-modulated");
-                return -1;
-            }
-        }
-    }
-    else {
-        PyErr_SetString(
-            PyExc_TypeError,
-            "Invalid animation argument, must be a tuple of pygame.Surface objects");
+    if (!validate_emitter_shape(emitter->spawn_shape) ||
+        !validate_blend_mode(emitter->blend_mode) ||
+        !validate_animation(py_animation, emitter)) {
         return -1;
     }
 
-    if (lifetime_obj && !initGen_FromObj(lifetime_obj, &emitter->lifetime)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid lifetime argument");
-        return -1;
-    }
-    else {
-        emitter->lifetime.min = 60.0f;
-    }
+    PyObject *py_options[] = {py_lifetime, py_speed_x, py_speed_y, py_acceleration_x,
+                              py_acceleration_y};
 
-    if (speedx_obj && !initGen_FromObj(speedx_obj, &emitter->speed_x)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid speed_x argument");
-        return -1;
-    }
+    Option *options[] = {&emitter->lifetime, &emitter->speed_x, &emitter->speed_y,
+                         &emitter->acceleration_x, &emitter->acceleration_y};
 
-    if (speedy_obj && !initGen_FromObj(speedy_obj, &emitter->speed_y)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid speed_y argument");
+    if (!init_emitter_options(py_options, options, 5))
         return -1;
-    }
-
-    if (accx_obj && !initGen_FromObj(accx_obj, &emitter->acceleration_x)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid acceleration_x argument");
-        return -1;
-    }
-
-    if (accy_obj && !initGen_FromObj(accy_obj, &emitter->acceleration_y)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid acceleration_y argument");
-        return -1;
-    }
 
     return 0;
 }
 
-#define TF(x) ((x) ? "Yes" : "No")
+#define YN(x) (((x).state == OPTION_RANDOMIZED) ? "Yes" : "No")
 #define CREATE_PYFLOAT(var, value)   \
     var = PyFloat_FromDouble(value); \
     if (PyErr_Occurred())            \
@@ -247,16 +76,22 @@ emitter_str(EmitterObject *self)
     PyObject *acceleration_y_min = NULL;
     PyObject *acceleration_y_max = NULL;
 
-    CREATE_PYFLOAT(lifetime_min, e->lifetime.min);
-    CREATE_PYFLOAT(lifetime_max, e->lifetime.max);
-    CREATE_PYFLOAT(speed_x_min, e->speed_x.min);
-    CREATE_PYFLOAT(speed_x_max, e->speed_x.max);
-    CREATE_PYFLOAT(speed_y_min, e->speed_y.min);
-    CREATE_PYFLOAT(speed_y_max, e->speed_y.max);
-    CREATE_PYFLOAT(acceleration_x_min, e->acceleration_x.min);
-    CREATE_PYFLOAT(acceleration_x_max, e->acceleration_x.max);
-    CREATE_PYFLOAT(acceleration_y_min, e->acceleration_y.min);
-    CREATE_PYFLOAT(acceleration_y_max, e->acceleration_y.max);
+    Option lifetime = e->lifetime;
+    Option speed_x = e->speed_x;
+    Option speed_y = e->speed_y;
+    Option acceleration_x = e->acceleration_x;
+    Option acceleration_y = e->acceleration_y;
+
+    CREATE_PYFLOAT(lifetime_min, lifetime.min);
+    CREATE_PYFLOAT(lifetime_max, lifetime.max);
+    CREATE_PYFLOAT(speed_x_min, speed_x.min);
+    CREATE_PYFLOAT(speed_x_max, speed_x.max);
+    CREATE_PYFLOAT(speed_y_min, speed_y.min);
+    CREATE_PYFLOAT(speed_y_max, speed_y.max);
+    CREATE_PYFLOAT(acceleration_x_min, acceleration_x.min);
+    CREATE_PYFLOAT(acceleration_x_max, acceleration_x.max);
+    CREATE_PYFLOAT(acceleration_y_min, acceleration_y.min);
+    CREATE_PYFLOAT(acceleration_y_max, acceleration_y.max);
 
     char *spawn_shape_str;
     switch (e->spawn_shape) {
@@ -267,12 +102,6 @@ emitter_str(EmitterObject *self)
             spawn_shape_str = "UNKNOWN";
             break;
     }
-
-    generator *lifetime = &e->lifetime;
-    generator *speed_x = &e->speed_x;
-    generator *speed_y = &e->speed_y;
-    generator *accel_x = &e->acceleration_x;
-    generator *accel_y = &e->acceleration_y;
 
     PyObject *str = PyUnicode_FromFormat(
         "Emitter("
@@ -286,10 +115,10 @@ emitter_str(EmitterObject *self)
         "\n    acceleration_y:   %R to %R   rng: %s"
         "\n)",
         spawn_shape_str, e->emission_number, e->num_frames, lifetime_min,
-        lifetime_max, TF(lifetime->randomize), speed_x_min, speed_x_max,
-        TF(speed_x->randomize), speed_y_min, speed_y_max, TF(speed_y->randomize),
-        acceleration_x_min, acceleration_x_max, TF(accel_x->randomize),
-        acceleration_y_min, acceleration_y_max, TF(accel_y->randomize));
+        lifetime_max, YN(lifetime), speed_x_min, speed_x_max, YN(speed_x),
+        speed_y_min, speed_y_max, YN(speed_y), acceleration_x_min,
+        acceleration_x_max, YN(acceleration_x), acceleration_y_min,
+        acceleration_y_max, YN(acceleration_y));
 
     Py_DECREF(lifetime_min);
     Py_DECREF(lifetime_max);
@@ -319,8 +148,8 @@ on_error:
     return NULL;
 }
 
-#undef TF
 #undef CREATE_PYFLOAT
+#undef YN
 
 void
 emitter_dealloc(EmitterObject *self)
@@ -328,4 +157,87 @@ emitter_dealloc(EmitterObject *self)
     Py_XDECREF(self->emitter.animation);
 
     Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+/* ====================| Internal EmitterObject functions |==================== */
+int
+validate_emitter_shape(int shape)
+{
+    if (shape == _POINT)
+        return 1;
+
+    PyErr_SetString(PyExc_ValueError, "Invalid emitter spawn area shape");
+    return 0;
+}
+
+int
+validate_blend_mode(int mode)
+{
+    if (mode == 0 || mode == 1)
+        return 1;
+
+    PyErr_SetString(PyExc_ValueError,
+                    "Invalid blend mode, supported modes are: "
+                    "pygame.BLEND_ADD and pygame.BLENDMODE_NONE");
+    return 0;
+}
+
+int
+validate_animation(PyObject *py_animation, Emitter *emitter)
+{
+    if (!PyTuple_Check(py_animation)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "Invalid animation argument, must be a tuple of pygame.Surface objects");
+        return 0;
+    }
+
+    int len = PyTuple_GET_SIZE(py_animation);
+    if (len == 0) {
+        PyErr_SetString(PyExc_ValueError, "Animation tuple is empty");
+        return 0;
+    }
+
+    Py_INCREF(py_animation);
+    emitter->animation = py_animation;
+    emitter->num_frames = len;
+
+    PyObject **items = PySequence_Fast_ITEMS(py_animation);
+    for (int i = 0; i < len; i++) {
+        PyObject *img = items[i];
+        if (!pgSurface_Check(img)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "Invalid image in animation, must be a pygame.Surface");
+            return 0;
+        }
+
+        pgSurfaceObject *surf_obj = (pgSurfaceObject *)img;
+        if (!surf_obj->surf) {
+            PyErr_SetString(PyExc_RuntimeError, "Surface is not initialized");
+            return 0;
+        }
+
+        SDL_Surface *surf = surf_obj->surf;
+        Uint8 alpha;
+
+        if (surf->format->BytesPerPixel != 4 || SDL_HasColorKey(surf) ||
+            SDL_HasSurfaceRLE(surf) || (surf->flags & SDL_RLEACCEL) ||
+            SDL_ISPIXELFORMAT_ALPHA(surf->format->format) ||
+            (SDL_GetSurfaceAlphaMod(surf, &alpha) == 0 && alpha != 255)) {
+            PyErr_SetString(PyExc_ValueError,
+                            "Image must be 32-bit, non-RLE, non-alpha-modulated");
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int
+init_emitter_options(PyObject *py_objs[], Option *options[], int count)
+{
+    for (int i = 0; i < count; i++)
+        if (!init_option_from_pyobj(py_objs[i], options[i]))
+            return 0;
+
+    return 1;
 }

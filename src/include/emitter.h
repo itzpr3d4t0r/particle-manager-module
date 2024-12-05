@@ -1,8 +1,8 @@
 #pragma once
 
 #include <stdbool.h>
-#include "MT19937.h"
 #include "base.h"
+#include "option.h"
 
 typedef enum {
     _POINT,
@@ -13,17 +13,17 @@ typedef struct {
     EmitterSpawnShape spawn_shape;
 
     /* Core emitter settings */
-    int emission_number; /* number of particles to emit */
+    int emission_number;
 
     /* Core particle settings */
     PyObject *animation; /* python tuple containing animation frames */
-    int num_frames;      /* animation frames number */
+    int num_frames;
 
-    generator lifetime;
-    generator speed_x;
-    generator speed_y;
-    generator acceleration_x;
-    generator acceleration_y;
+    Option lifetime;
+    Option speed_x;
+    Option speed_y;
+    Option acceleration_x;
+    Option acceleration_y;
 
     /* Additional particle settings */
     int blend_mode;
@@ -37,6 +37,8 @@ extern PyTypeObject Emitter_Type;
 
 #define Emitter_Check(o) (Py_TYPE(o) == &Emitter_Type)
 
+/* ==================| Public facing EmitterObject functions |================== */
+
 PyObject *
 emitter_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
@@ -48,3 +50,17 @@ emitter_str(EmitterObject *self);
 
 void
 emitter_dealloc(EmitterObject *self);
+
+/* ====================| Internal EmitterObject functions |==================== */
+
+int
+validate_emitter_shape(int shape);
+
+int
+validate_blend_mode(int mode);
+
+int
+validate_animation(PyObject *py_animation, Emitter *emitter);
+
+int
+init_emitter_options(PyObject *py_objs[], Option *options[], int count);

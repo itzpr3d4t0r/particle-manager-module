@@ -111,16 +111,3 @@ rand_int_between(int lo, int hi)
     /* Returns a random integer in the range [lo, hi] */
     return (int)(lo + (genrand_int32() % (hi - lo + 1)));
 }
-
-typedef struct {
-    float min;
-    float max;
-    int randomize;
-    bool in_use;
-} generator;
-
-static float
-genrand_from(const generator *g)
-{
-    return g->randomize ? rand_between(g->min, g->max) : g->min;
-}

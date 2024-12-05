@@ -5,6 +5,7 @@
 
 #include "include/data_block.h"
 #include "include/simd_common.h"
+#include "include/option.h"
 
 /* ====================| Public facing DataBlock functions |==================== */
 int
@@ -19,8 +20,8 @@ init_data_block(DataBlock *block, Emitter *emitter, vec2 position)
 
     /* Conditionally allocate memory for the arrays based on emitter properties */
     if (!alloc_and_init_positions(block, emitter, position) ||
-        !alloc_and_init_velocities(block, emitter) ||
         !alloc_and_init_accelerations(block, emitter) ||
+        !alloc_and_init_velocities(block, emitter) ||
         !alloc_and_init_lifetimes(block, emitter) ||
         !alloc_and_init_animation_indices(block, emitter) ||
         !init_fragmentation_map(block))
@@ -48,10 +49,33 @@ dealloc_data_block(DataBlock *block)
 }
 
 void
+update_data_block(DataBlock *block, float dt)
+{
+    block->updater(block, dt);
+
+    recalculate_particle_count(block);
+}
+
+int
+draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
+{
+    update_indices(block);
+
+    if (!calculate_fragmentation_map(dest, block))
+        return 0;
+
+    blit_fragments(dest, &block->frag_map, block, blend_flag);
+
+    return 1;
+}
+
+/* ====================| Internal DataBlock functions |==================== */
+
+void
 choose_and_set_update_function(DataBlock *block, Emitter *emitter)
 {
-    const bool use_x_acc = emitter->acceleration_x.in_use;
-    const bool use_y_acc = emitter->acceleration_y.in_use;
+    const int use_x_acc = OPTION_IS_SET(emitter->acceleration_x);
+    const int use_y_acc = OPTION_IS_SET(emitter->acceleration_y);
 
 #if !defined(__EMSCRIPTEN__)
     if (_Has_AVX2()) {
@@ -92,29 +116,6 @@ choose_and_set_update_function(DataBlock *block, Emitter *emitter)
     else
         block->updater = update_with_acceleration;
 }
-
-void
-update_data_block(DataBlock *block, float dt)
-{
-    block->updater(block, dt);
-
-    recalculate_particle_count(block);
-}
-
-int
-draw_data_block(DataBlock *block, pgSurfaceObject *dest, const int blend_flag)
-{
-    update_indices(block);
-
-    if (!calculate_fragmentation_map(dest, block))
-        return 0;
-
-    blit_fragments(dest, &block->frag_map, block, blend_flag);
-
-    return 1;
-}
-
-/* ====================| Internal DataBlock functions |==================== */
 
 void
 calculate_surface_index_occurrences(DataBlock *block)
@@ -543,23 +544,268 @@ alloc_and_init_positions(DataBlock *block, Emitter *emitter, vec2 position)
 int
 alloc_and_init_velocities(DataBlock *block, Emitter *emitter)
 {
-    /* Check if the emitter has no speed */
-    if (emitter->speed_x.min == 0.0f && emitter->speed_x.max == 0.0f &&
-        emitter->speed_y.min == 0.0f && emitter->speed_y.max == 0.0f)
+    const int x_set = OPTION_IS_SET(emitter->speed_x);
+    const int y_set = OPTION_IS_SET(emitter->speed_y);
+
+    /* Acceleration flags are already set when this is called */
+    int flags = block->update_flags;
+
+    if (!x_set && !y_set) {
+        /* In this case, based on the acceleration flags, we either allocate an array
+         * of zeroes or set a single value to zero */
+        if (flags & NO_ACCELERATION) {
+            block->update_flags |= NO_VELOCITY;
+        }
+        else if (flags & ACCEL_X_SINGLE && flags & ACCEL_Y_SINGLE) {
+            block->update_flags |= VELOCITY_X_SINGLE | VELOCITY_Y_SINGLE;
+            block->s_velocity_x = 0.0f;
+            block->s_velocity_y = 0.0f;
+        }
+        else if (flags & ACCEL_X_ARRAY && flags & ACCEL_Y_ARRAY) {
+            block->update_flags |= VELOCITY_X_ARRAY | VELOCITY_Y_ARRAY;
+
+            float_array *x = &block->velocities_x;
+            float_array *y = &block->velocities_y;
+
+            /* Allocate memory for the velocities array ( 0 initialized ) */
+            if (!float_array_calloc(x, emitter->emission_number) ||
+                !float_array_calloc(y, emitter->emission_number))
+                return 0;
+        }
+        else if (flags & ACCEL_X_SINGLE && flags & ACCEL_Y_ARRAY) {
+            block->update_flags |= VELOCITY_X_SINGLE | VELOCITY_Y_ARRAY;
+            block->s_velocity_x = 0.0f;
+
+            float_array *y = &block->velocities_y;
+
+            /* Allocate memory for the velocities array ( 0 initialized ) */
+            if (!float_array_calloc(y, emitter->emission_number))
+                return 0;
+        }
+        else if (flags & ACCEL_X_ARRAY && flags & ACCEL_Y_SINGLE) {
+            block->update_flags |= VELOCITY_X_ARRAY | VELOCITY_Y_SINGLE;
+            block->s_velocity_y = 0.0f;
+
+            float_array *x = &block->velocities_x;
+
+            /* Allocate memory for the velocities array ( 0 initialized ) */
+            if (!float_array_calloc(x, emitter->emission_number))
+                return 0;
+        }
+
         return 1;
+    }
+    else if (x_set && y_set) {
+        const int x_is_value = OPTION_IS_VALUE(emitter->speed_x);
+        const int y_is_value = OPTION_IS_VALUE(emitter->speed_y);
 
-    float_array *x = &block->velocities_x;
-    float_array *y = &block->velocities_y;
+        if (x_is_value && y_is_value) {
+            /* Both velocities are set to a single constant value, the update
+             * function will just store a single value each */
+            if (flags & NO_ACCELERATION ||
+                (flags & ACCEL_X_SINGLE && flags & ACCEL_Y_SINGLE)) {
+                block->update_flags |= VELOCITY_X_SINGLE | VELOCITY_Y_SINGLE;
 
-    /* Allocate memory for the velocities array */
-    if (!float_array_alloc(x, emitter->emission_number) ||
-        !float_array_alloc(y, emitter->emission_number))
-        return 0;
+                block->s_velocity_x = option_get_value(&emitter->speed_x);
+                block->s_velocity_y = option_get_value(&emitter->speed_y);
+            }
+            else if (flags & ACCEL_X_ARRAY && flags & ACCEL_Y_ARRAY) {
+                block->update_flags |= VELOCITY_X_ARRAY | VELOCITY_Y_ARRAY;
 
-    /* Initialize the velocities array */
-    for (int i = 0; i < emitter->emission_number; i++) {
-        x->data[i] = genrand_from(&emitter->speed_x);
-        y->data[i] = genrand_from(&emitter->speed_y);
+                float_array *x = &block->velocities_x;
+                float_array *y = &block->velocities_y;
+
+                /* Allocate memory for the velocities array */
+                if (!float_array_alloc(x, emitter->emission_number) ||
+                    !float_array_alloc(y, emitter->emission_number))
+                    return 0;
+
+                /* Initialize the velocities array */
+                for (int i = 0; i < emitter->emission_number; i++) {
+                    x->data[i] = option_get_value(&emitter->speed_x);
+                    y->data[i] = option_get_value(&emitter->speed_y);
+                }
+            }
+            else if (flags & ACCEL_X_SINGLE && flags & ACCEL_Y_ARRAY) {
+                block->update_flags |= VELOCITY_X_SINGLE | VELOCITY_Y_ARRAY;
+
+                block->s_velocity_x = option_get_value(&emitter->speed_x);
+
+                float_array *y = &block->velocities_y;
+                if (!float_array_alloc(y, emitter->emission_number))
+                    return 0;
+
+                for (int i = 0; i < emitter->emission_number; i++)
+                    y->data[i] = option_get_value(&emitter->speed_y);
+            }
+            else if (flags & ACCEL_X_ARRAY && flags & ACCEL_Y_SINGLE) {
+                block->update_flags |= VELOCITY_X_ARRAY | VELOCITY_Y_SINGLE;
+
+                block->s_velocity_y = option_get_value(&emitter->speed_y);
+
+                float_array *x = &block->velocities_x;
+                if (!float_array_alloc(x, emitter->emission_number))
+                    return 0;
+
+                for (int i = 0; i < emitter->emission_number; i++)
+                    x->data[i] = option_get_value(&emitter->speed_x);
+            }
+
+            return 1;
+        }
+        else if (!x_is_value && !y_is_value) {
+            /* Both velocities are randomized, the update function will store
+             * a random value for each particle */
+            block->update_flags |= VELOCITY_X_ARRAY | VELOCITY_Y_ARRAY;
+
+            float_array *x = &block->velocities_x;
+            float_array *y = &block->velocities_y;
+
+            /* Allocate memory for the velocities array */
+            if (!float_array_alloc(x, emitter->emission_number) ||
+                !float_array_alloc(y, emitter->emission_number))
+                return 0;
+
+            /* Initialize the velocities array */
+            for (int i = 0; i < emitter->emission_number; i++) {
+                x->data[i] = option_get_value(&emitter->speed_x);
+                y->data[i] = option_get_value(&emitter->speed_y);
+            }
+        }
+        else if (x_is_value && !y_is_value) {
+            /* Velocity x is set to a single constant value, velocity y
+             * is randomized */
+            if (flags & ACCEL_X_SINGLE || flags & NO_ACCELERATION_X) {
+                block->update_flags |= VELOCITY_X_SINGLE;
+                block->s_velocity_x = option_get_value(&emitter->speed_x);
+            }
+            else if (flags & ACCEL_X_ARRAY) {
+                block->update_flags |= VELOCITY_X_ARRAY;
+
+                float_array *x = &block->velocities_x;
+                if (!float_array_alloc(x, emitter->emission_number))
+                    return 0;
+
+                for (int i = 0; i < emitter->emission_number; i++)
+                    x->data[i] = option_get_value(&emitter->speed_x);
+            }
+
+            block->update_flags |= VELOCITY_Y_ARRAY;
+
+            float_array *y = &block->velocities_y;
+            if (!float_array_alloc(y, emitter->emission_number))
+                return 0;
+
+            for (int i = 0; i < emitter->emission_number; i++)
+                y->data[i] = option_get_value(&emitter->speed_y);
+        }
+        else if (!x_is_value && y_is_value) {
+            /* Velocity y is set to a single constant value, velocity x
+             * is randomized */
+            if (flags & ACCEL_Y_SINGLE || flags & NO_ACCELERATION_Y) {
+                block->update_flags |= VELOCITY_Y_SINGLE;
+                block->s_velocity_y = option_get_value(&emitter->speed_y);
+            }
+            else if (flags & ACCEL_Y_ARRAY) {
+                block->update_flags |= VELOCITY_Y_ARRAY;
+
+                float_array *y = &block->velocities_y;
+                if (!float_array_alloc(y, emitter->emission_number))
+                    return 0;
+
+                for (int i = 0; i < emitter->emission_number; i++)
+                    y->data[i] = option_get_value(&emitter->speed_y);
+            }
+
+            block->update_flags |= VELOCITY_X_ARRAY;
+
+            float_array *x = &block->velocities_x;
+            if (!float_array_alloc(x, emitter->emission_number))
+                return 0;
+
+            for (int i = 0; i < emitter->emission_number; i++)
+                x->data[i] = option_get_value(&emitter->speed_x);
+        }
+    }
+    else if (!x_set && y_set) {
+        if (flags & ACCEL_X_SINGLE) {
+            block->update_flags |= VELOCITY_X_SINGLE;
+            block->s_velocity_x = 0.0f;
+        }
+        else if (flags & ACCEL_X_ARRAY) {
+            block->update_flags |= VELOCITY_X_ARRAY;
+
+            float_array *x = &block->velocities_x;
+            if (!float_array_calloc(x, emitter->emission_number))
+                return 0;
+        }
+
+        if (OPTION_IS_VALUE(emitter->speed_y)) {
+            if (flags & ACCEL_Y_SINGLE) {
+                block->update_flags |= VELOCITY_Y_SINGLE;
+                block->s_velocity_y = option_get_value(&emitter->speed_y);
+            }
+            else if (flags & ACCEL_Y_ARRAY) {
+                block->update_flags |= VELOCITY_Y_ARRAY;
+
+                float_array *y = &block->velocities_y;
+                if (!float_array_alloc(y, emitter->emission_number))
+                    return 0;
+
+                for (int i = 0; i < emitter->emission_number; i++)
+                    y->data[i] = option_get_value(&emitter->speed_y);
+            }
+        }
+        else {
+            block->update_flags |= VELOCITY_Y_ARRAY;
+
+            float_array *y = &block->velocities_y;
+            if (!float_array_alloc(y, emitter->emission_number))
+                return 0;
+
+            for (int i = 0; i < emitter->emission_number; i++)
+                y->data[i] = option_get_value(&emitter->speed_y);
+        }
+    }
+    else if (x_set && !y_set) {
+        if (flags & ACCEL_Y_SINGLE) {
+            block->update_flags |= VELOCITY_Y_SINGLE;
+            block->s_velocity_y = 0.0f;
+        }
+        else if (flags & ACCEL_Y_ARRAY) {
+            block->update_flags |= VELOCITY_Y_ARRAY;
+
+            float_array *y = &block->velocities_y;
+            if (!float_array_calloc(y, emitter->emission_number))
+                return 0;
+        }
+
+        if (OPTION_IS_VALUE(emitter->speed_x)) {
+            if (flags & ACCEL_X_SINGLE) {
+                block->update_flags |= VELOCITY_X_SINGLE;
+                block->s_velocity_x = option_get_value(&emitter->speed_x);
+            }
+            else if (flags & ACCEL_X_ARRAY) {
+                block->update_flags |= VELOCITY_X_ARRAY;
+
+                float_array *x = &block->velocities_x;
+                if (!float_array_alloc(x, emitter->emission_number))
+                    return 0;
+
+                for (int i = 0; i < emitter->emission_number; i++)
+                    x->data[i] = option_get_value(&emitter->speed_x);
+            }
+        }
+        else {
+            block->update_flags |= VELOCITY_X_ARRAY;
+
+            float_array *x = &block->velocities_x;
+            if (!float_array_alloc(x, emitter->emission_number))
+                return 0;
+
+            for (int i = 0; i < emitter->emission_number; i++)
+                x->data[i] = option_get_value(&emitter->speed_x);
+        }
     }
 
     return 1;
@@ -568,29 +814,111 @@ alloc_and_init_velocities(DataBlock *block, Emitter *emitter)
 int
 alloc_and_init_accelerations(DataBlock *block, Emitter *emitter)
 {
-    /* Check if the emitter has no acceleration */
-    const int alloc_x = emitter->acceleration_x.in_use;
-    const int alloc_y = emitter->acceleration_y.in_use;
+    const int x_set = OPTION_IS_SET(emitter->acceleration_x);
+    const int y_set = OPTION_IS_SET(emitter->acceleration_y);
 
-    if (!alloc_x && !alloc_y)
+    if (!x_set && !y_set) {
+        /* If both accelerations are not set, hust return.
+         * Both s_acceleration_x and s_acceleration_y are already 0 */
+        block->update_flags |=
+            NO_ACCELERATION | NO_ACCELERATION_X | NO_ACCELERATION_Y;
         return 1;
+    }
+    else if (x_set && y_set) {
+        const int x_is_value = OPTION_IS_VALUE(emitter->acceleration_x);
+        const int y_is_value = OPTION_IS_VALUE(emitter->acceleration_y);
 
-    float_array *x = &block->accelerations_x;
-    float_array *y = &block->accelerations_y;
+        if (x_is_value && y_is_value) {
+            /* Both accelerations are set to a single constant value, the update
+             * function will just store a single value each */
+            block->update_flags |= ACCEL_X_SINGLE | ACCEL_Y_SINGLE;
 
-    /* Allocate memory for the accelerations arrays */
-    if (alloc_x && !float_array_alloc(x, emitter->emission_number))
-        return 0;
+            block->s_acceleration_x = option_get_value(&emitter->acceleration_x);
+            block->s_acceleration_y = option_get_value(&emitter->acceleration_y);
 
-    if (alloc_y && !float_array_alloc(y, emitter->emission_number))
-        return 0;
+            return 1;
+        }
+        else if (!x_is_value && !y_is_value) {
+            /* Both accelerations are randomized, the update function will store
+             * a random value for each particle */
+            block->update_flags |= ACCEL_X_ARRAY | ACCEL_Y_ARRAY;
 
-    /* Initialize the accelerations arrays */
-    for (int i = 0; i < emitter->emission_number; i++) {
-        if (alloc_x)
-            x->data[i] = genrand_from(&emitter->acceleration_x);
-        if (alloc_y)
-            y->data[i] = genrand_from(&emitter->acceleration_y);
+            float_array *x = &block->accelerations_x;
+            float_array *y = &block->accelerations_y;
+
+            /* Allocate memory for the accelerations arrays */
+            if (!float_array_alloc(x, emitter->emission_number))
+                return 0;
+
+            if (!float_array_alloc(y, emitter->emission_number))
+                return 0;
+
+            /* Initialize the accelerations arrays */
+            for (int i = 0; i < emitter->emission_number; i++) {
+                x->data[i] = option_get_value(&emitter->acceleration_x);
+                y->data[i] = option_get_value(&emitter->acceleration_y);
+            }
+        }
+        else if (x_is_value && !y_is_value) {
+            /* Acceleration x is set to a single constant value, acceleration y
+             * is randomized */
+            block->update_flags |= ACCEL_X_SINGLE | ACCEL_Y_ARRAY;
+
+            block->s_acceleration_x = option_get_value(&emitter->acceleration_x);
+
+            float_array *y = &block->accelerations_y;
+            if (!float_array_alloc(y, emitter->emission_number))
+                return 0;
+
+            for (int i = 0; i < emitter->emission_number; i++)
+                y->data[i] = option_get_value(&emitter->acceleration_y);
+        }
+        else if (!x_is_value && y_is_value) {
+            /* Acceleration y is set to a single constant value, acceleration x
+             * is randomized */
+            block->update_flags |= ACCEL_X_ARRAY | ACCEL_Y_SINGLE;
+
+            block->s_acceleration_y = option_get_value(&emitter->acceleration_y);
+
+            float_array *x = &block->accelerations_x;
+            if (!float_array_alloc(x, emitter->emission_number))
+                return 0;
+
+            for (int i = 0; i < emitter->emission_number; i++)
+                x->data[i] = option_get_value(&emitter->acceleration_x);
+        }
+    }
+    else if (!x_set && y_set) {
+        block->update_flags |= NO_ACCELERATION_X;
+        if (OPTION_IS_VALUE(emitter->acceleration_y)) {
+            block->update_flags |= ACCEL_Y_SINGLE;
+            block->s_acceleration_y = option_get_value(&emitter->acceleration_y);
+            return 1;
+        }
+        block->update_flags |= ACCEL_Y_ARRAY;
+
+        float_array *y = &block->accelerations_y;
+        if (!float_array_alloc(y, emitter->emission_number))
+            return 0;
+
+        for (int i = 0; i < emitter->emission_number; i++)
+            y->data[i] = option_get_value(&emitter->acceleration_y);
+    }
+    else if (x_set && !y_set) {
+        block->update_flags |= NO_ACCELERATION_Y;
+        if (OPTION_IS_VALUE(emitter->acceleration_x)) {
+            block->update_flags |= ACCEL_X_SINGLE;
+            block->s_acceleration_x = option_get_value(&emitter->acceleration_x);
+            return 1;
+        }
+        block->update_flags |= ACCEL_X_ARRAY;
+
+        float_array *x = &block->accelerations_x;
+        if (!float_array_alloc(x, emitter->emission_number))
+            return 0;
+
+        for (int i = 0; i < emitter->emission_number; i++)
+            x->data[i] = option_get_value(&emitter->acceleration_x);
     }
 
     return 1;
@@ -609,7 +937,7 @@ alloc_and_init_lifetimes(DataBlock *block, Emitter *emitter)
         return 0;
 
     for (int i = 0; i < num_particles; i++)
-        lifetimes->data[i] = genrand_from(&emitter->lifetime);
+        lifetimes->data[i] = option_get_value(&emitter->lifetime);
 
     /* Sort lifetimes in descending order */
     qsort(lifetimes->data, num_particles, sizeof(float), _compare_desc);
